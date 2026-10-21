@@ -14,6 +14,9 @@
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <!-- html2pdf for PDF Invoices -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <!-- Firebase SDK Compat -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
     <script>
         tailwind.config = {
             theme: {
@@ -557,7 +560,7 @@
         </div>
     </div>
 
-    <!-- ADD/EDIT PRODUCT MODAL (MULTILINGUAL TITLES & DESCRIPTIONS) -->
+    <!-- ADD/EDIT PRODUCT MODAL -->
     <div id="productModal" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4">
         <div class="absolute inset-0 bg-espresso/60 backdrop-blur-sm" onclick="closeProductModal()"></div>
         <div class="relative bg-white rounded-3xl p-8 max-w-xl w-full shadow-2xl z-10 max-h-[90vh] overflow-y-auto custom-scrollbar">
@@ -565,7 +568,6 @@
             <form onsubmit="saveProduct(event)" class="space-y-4 mt-4">
                 <input type="hidden" id="prodId">
                 
-                <!-- MULTILINGUAL NAMES -->
                 <div class="grid grid-cols-2 gap-3">
                     <div>
                         <label class="block text-xs font-bold uppercase text-stone-500 mb-1">🇲🇰 Наслов (MK)</label>
@@ -577,7 +579,6 @@
                     </div>
                 </div>
 
-                <!-- MULTILINGUAL DESCRIPTIONS -->
                 <div class="grid grid-cols-2 gap-3">
                     <div>
                         <label class="block text-xs font-bold uppercase text-stone-500 mb-1">🇲🇰 Опис (MK)</label>
@@ -627,20 +628,18 @@
                 </div>
                 
                 <div>
-                    <label class="block text-xs font-bold uppercase text-stone-500 mb-1" data-i18n="lblColorsInput">Бои (одвоени со запирка, напр. Бела, Црна, Жолта, Зелена)</label>
+                    <label class="block text-xs font-bold uppercase text-stone-500 mb-1" data-i18n="lblColorsInput">Бои (одвоени со запирка)</label>
                     <div class="flex gap-2">
                         <input type="text" id="prodColorsInput" value="Бела, Црна" class="w-full px-4 py-2 bg-warmCream border border-softTaupe rounded-2xl text-sm font-bold">
                         <button type="button" onclick="generateColorSizeConfig()" class="px-4 py-2 bg-espresso text-accentGold text-xs font-bold rounded-2xl whitespace-nowrap" data-i18n="genSizesBtn">Генерирај Големини</button>
                     </div>
                 </div>
 
-                <!-- COLOR & SIZES CONFIGURATION CONTAINER -->
                 <div class="p-4 bg-warmCream rounded-2xl border border-softTaupe space-y-3">
                     <h4 class="text-xs font-black uppercase text-espresso" data-i18n="configSizesHeader"><i class="fa-solid fa-shirt text-accentGold"></i> Подеси големини за секоја боја поединечно:</h4>
                     <div id="colorSizesConfigContainer" class="space-y-3 mt-2"></div>
                 </div>
 
-                <!-- MULTIPLE IMAGES UPLOAD SECTION -->
                 <div>
                     <label class="block text-xs font-bold uppercase text-stone-500 mb-1" data-i18n="lblUploadImgs">Прикачи повеќе слики од компјутер</label>
                     <input type="file" id="prodImageUpload" multiple accept="image/*" onchange="handleFileUpload(event)" class="w-full text-xs text-stone-500 file:mr-4 file:py-2 file:px-4 file:rounded-2xl file:border-0 file:text-xs file:font-semibold file:bg-espresso file:text-accentGold hover:file:bg-espressoDark">
@@ -667,6 +666,21 @@
     <div id="toastContainer" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 pointer-events-none"></div>
 
     <script>
+        // ================= FIREBASE CONFIGURATION (Вашите точни податоци) =================
+        const firebaseConfig = {
+            apiKey: "AIzaSyBWbp0v73xa_19_4VWSDQ373fJDi2m6EqU",
+            authDomain: "tonka-butik.firebaseapp.com",
+            projectId: "tonka-butik",
+            storageBucket: "tonka-butik.firebasestorage.app",
+            messagingSenderId: "241470724274",
+            appId: "1:24147072474:web:4d731934403c873f7051ab",
+            measurementId: "G-VVYSPQG044"
+        };
+
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
         // TRANSLATIONS DICTIONARY
         const translations = {
             mk: {
@@ -776,7 +790,7 @@
                 lblPrice: "Цена (ден.)",
                 lblOldPrice: "Стара Цена",
                 lblDiscountCheck: "Прикажи во секцијата 🔥 Акција",
-                lblColorsInput: "Бои (одвоени со запирка, напр. Бела, Црна)",
+                lblColorsInput: "Бои (одвоени со запирка)",
                 genSizesBtn: "Генерирај Големини",
                 configSizesHeader: "Подеси големини за секоја боја поединечно:",
                 lblUploadImgs: "Прикачи повеќе слики од компјутер",
@@ -890,7 +904,7 @@
                 lblPrice: "Price (den.)",
                 lblOldPrice: "Old Price",
                 lblDiscountCheck: "Show in 🔥 Sale section",
-                lblColorsInput: "Colors (comma separated, e.g. White, Black)",
+                lblColorsInput: "Colors (comma separated)",
                 genSizesBtn: "Generate Sizes",
                 configSizesHeader: "Configure sizes for each color individually:",
                 lblUploadImgs: "Upload multiple images from computer",
@@ -920,62 +934,12 @@
             if (isAdminLoggedIn) renderAdminData();
         }
 
-        const initialProducts = [
-            { 
-                id: 1, 
-                titleMk: 'Фармерки Slim Fit', 
-                titleEn: 'Slim Fit Jeans',
-                descMk: 'Удобни фармерки со врвен квалитет.',
-                descEn: 'Comfortable top quality jeans.',
-                category: 'zeni',
-                subcategory: 'farmerki', 
-                price: 2200, 
-                oldPrice: 2800,
-                isDiscount: true,
-                colors: ['Сина', 'Црна'],
-                colorSizes: {
-                    'Сина': ['28', '30', '32', '34'],
-                    'Црна': ['30', '32', '36', '38']
-                },
-                images: [
-                    'https://images.unsplash.com/photo-1541099649105-f69ad21f3246?auto=format&fit=crop&w=600&q=80'
-                ]
-            },
-            { 
-                id: 2, 
-                titleMk: 'Блуза со Знакче ТОНКА', 
-                titleEn: 'TONKA Logo Blouse',
-                descMk: 'Премиум памучна блуза во две бои со различни големини.',
-                descEn: 'Premium cotton blouse in two colors with various sizes.',
-                category: 'zeni',
-                subcategory: 'bluzi', 
-                price: 1800, 
-                oldPrice: 2400,
-                isDiscount: true,
-                colors: ['Бела', 'Црна'],
-                colorSizes: {
-                    'Бела': ['S', 'M', 'L', 'XL'],
-                    'Црна': ['M', 'L']
-                },
-                images: [
-                    'https://images.unsplash.com/photo-1521572267360-ee0c2909d518?auto=format&fit=crop&w=600&q=80'
-                ]
-            }
-        ];
-
-        const initialCoupons = [
-            { id: 1, code: 'XXX500', type: 'fixed', value: 500, minOrder: 3000, timesUsed: 0, active: true }
-        ];
-
-        let products = JSON.parse(localStorage.getItem('products')) || initialProducts;
-        let orders = JSON.parse(localStorage.getItem('orders')) || [];
-        let coupons = JSON.parse(localStorage.getItem('coupons')) || initialCoupons;
+        let products = [];
+        let orders = [];
+        let coupons = [];
         let wishlist = JSON.parse(localStorage.getItem('wishlist')) || [];
         let cart = JSON.parse(localStorage.getItem('cart')) || [];
-        let promoBannerData = JSON.parse(localStorage.getItem('promoBannerData')) || {
-            text: '✨ Добредојдовте во ТОНКА БУТИК | За нарачка над 3000 ден. искористете код XXX500 за 500 ден. попуст!',
-            active: true
-        };
+        let promoBannerData = { text: '✨ Добредојдовте во ТОНКА БУТИК | Бесплатна достава за нарачки над 2,500 ден.', active: true };
 
         let isAdminLoggedIn = false;
         let currentCategory = 'all';
@@ -988,7 +952,6 @@
         let currentQvSelectedSize = '';
         let currentQvQty = 1;
 
-        // Fallback helper function to ensure compatibility with older saved products
         function getProductTitle(p) {
             if (currentLang === 'en') {
                 return p.titleEn || p.titleMk || p.title || 'Product';
@@ -1003,22 +966,52 @@
             return p.descMk || p.description || p.descEn || '';
         }
 
+        // ================= FIREBASE REALTIME SYNC =================
+        function initFirebaseListeners() {
+            db.collection("products").onSnapshot((snapshot) => {
+                products = [];
+                snapshot.forEach((doc) => {
+                    products.push({ id: doc.id, ...doc.data() });
+                });
+                recalculatePriceBounds();
+                renderProducts();
+                if (isAdminLoggedIn) renderAdminData();
+            });
+
+            db.collection("orders").onSnapshot((snapshot) => {
+                orders = [];
+                snapshot.forEach((doc) => {
+                    orders.push({ id: doc.id, ...doc.data() });
+                });
+                if (isAdminLoggedIn) renderAdminData();
+            });
+
+            db.collection("coupons").onSnapshot((snapshot) => {
+                coupons = [];
+                snapshot.forEach((doc) => {
+                    coupons.push({ id: doc.id, ...doc.data() });
+                });
+                if (isAdminLoggedIn) renderAdminData();
+            });
+
+            db.collection("settings").doc("banner").onSnapshot((doc) => {
+                if (doc.exists) {
+                    promoBannerData = doc.data();
+                    initPromoBanner();
+                }
+            });
+        }
+
         document.addEventListener('DOMContentLoaded', () => {
-            initPromoBanner();
-            recalculatePriceBounds();
-            renderProducts();
+            initFirebaseListeners();
             updateCartUI();
             updateWishlistUI();
             checkAdminState();
         });
 
         function saveState() {
-            localStorage.setItem('products', JSON.stringify(products));
-            localStorage.setItem('orders', JSON.stringify(orders));
-            localStorage.setItem('coupons', JSON.stringify(coupons));
             localStorage.setItem('wishlist', JSON.stringify(wishlist));
             localStorage.setItem('cart', JSON.stringify(cart));
-            localStorage.setItem('promoBannerData', JSON.stringify(promoBannerData));
         }
 
         function initPromoBanner() {
@@ -1071,6 +1064,7 @@
         function renderProducts() {
             const grid = document.getElementById('productGrid');
             const emptyState = document.getElementById('emptyState');
+            if (!grid) return;
             grid.innerHTML = '';
 
             const minP = parseFloat(document.getElementById('priceMinInput').value) || 0;
@@ -1100,18 +1094,18 @@
                     grid.innerHTML += `
                         <div class="bg-white rounded-3xl border border-softTaupe/80 shadow-sm overflow-hidden hover:shadow-xl transition group flex flex-col justify-between">
                             <div>
-                                <div class="relative h-64 overflow-hidden bg-warmCream cursor-pointer" onclick="openQuickView(${p.id})">
+                                <div class="relative h-64 overflow-hidden bg-warmCream cursor-pointer" onclick="openQuickView('${p.id}')">
                                     <img src="${mainImg}" class="w-full h-full object-cover group-hover:scale-105 transition duration-300">
                                     <div class="absolute top-3 left-3 flex flex-col gap-1">
                                         <span class="px-2.5 py-1 bg-white/90 rounded-full text-[10px] font-bold text-espresso uppercase tracking-wider">${p.category}</span>
                                         ${p.isDiscount || hasDiscount ? `<span class="px-2.5 py-1 bg-rose-600 text-white rounded-full text-[10px] font-bold uppercase tracking-wider">🔥 АКЦИЈА</span>` : ''}
                                     </div>
-                                    <button onclick="event.stopPropagation(); toggleWishlist(${p.id})" class="absolute top-3 right-3 w-9 h-9 rounded-full bg-white/90 flex items-center justify-center text-stone-400 hover:text-rose-600 shadow-sm transition">
+                                    <button onclick="event.stopPropagation(); toggleWishlist('${p.id}')" class="absolute top-3 right-3 w-9 h-9 rounded-full bg-white/90 flex items-center justify-center text-stone-400 hover:text-rose-600 shadow-sm transition">
                                         <i class="fa-solid fa-heart ${isWish ? 'text-rose-600' : ''}"></i>
                                     </button>
                                 </div>
                                 <div class="p-5">
-                                    <h3 class="font-bold text-espresso group-hover:text-amber-700 transition cursor-pointer" onclick="openQuickView(${p.id})">${title}</h3>
+                                    <h3 class="font-bold text-espresso group-hover:text-amber-700 transition cursor-pointer" onclick="openQuickView('${p.id}')">${title}</h3>
                                     <p class="text-xs text-stone-400 mt-1 line-clamp-1">${desc || ''}</p>
                                     <div class="flex items-baseline gap-2 mt-3">
                                         <span class="text-xl font-black text-espresso">${p.price.toLocaleString()} ден.</span>
@@ -1120,7 +1114,7 @@
                                 </div>
                             </div>
                             <div class="p-5 pt-0">
-                                <button onclick="openQuickView(${p.id})" class="w-full py-2.5 bg-espresso text-accentGold font-bold text-xs rounded-2xl hover:bg-espressoDark transition flex items-center justify-center gap-1">
+                                <button onclick="openQuickView('${p.id}')" class="w-full py-2.5 bg-espresso text-accentGold font-bold text-xs rounded-2xl hover:bg-espressoDark transition flex items-center justify-center gap-1">
                                     <i class="fa-solid fa-eye"></i> ${currentLang === 'en' ? 'View / Choose' : 'Преглед / Избор'}
                                 </button>
                             </div>
@@ -1182,8 +1176,8 @@
                         <h4 class="font-bold text-xs text-espresso">${title}</h4>
                         <p class="text-xs font-bold text-espresso mt-1">${item.price} ден.</p>
                     </div>
-                    <button onclick="openQuickView(${item.id}); toggleWishlistModal();" class="px-3 py-1.5 bg-espresso text-accentGold text-xs font-bold rounded-xl">${currentLang === 'en' ? 'View' : 'Преглед'}</button>
-                    <button onclick="toggleWishlist(${item.id})" class="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg"><i class="fa-solid fa-trash"></i></button>
+                    <button onclick="openQuickView('${item.id}'); toggleWishlistModal();" class="px-3 py-1.5 bg-espresso text-accentGold text-xs font-bold rounded-xl">${currentLang === 'en' ? 'View' : 'Преглед'}</button>
+                    <button onclick="toggleWishlist('${item.id}')" class="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg"><i class="fa-solid fa-trash"></i></button>
                 </div>
             `}).join('');
         }
@@ -1329,6 +1323,7 @@
             const badge = document.getElementById('cartBadge');
             const container = document.getElementById('cartItemsContainer');
             const totalEl = document.getElementById('cartTotalPrice');
+            if (!container) return;
             const totalItems = cart.reduce((s, i) => s + i.qty, 0);
             let sub = cart.reduce((s, i) => s + (i.price * i.qty), 0);
             let disc = 0;
@@ -1375,16 +1370,19 @@
 
         function closeCheckoutModal() { document.getElementById('checkoutModal').classList.add('hidden'); }
 
-        function submitOrder(e) {
+        async function submitOrder(e) {
             e.preventDefault();
             let sub = cart.reduce((s, i) => s + (i.price * i.qty), 0);
             let disc = 0;
             if (activeAppliedCoupon) {
                 disc = activeAppliedCoupon.type === 'percent' ? (sub * activeAppliedCoupon.value) / 100 : activeAppliedCoupon.value;
                 const foundC = coupons.find(c => c.code === activeAppliedCoupon.code);
-                if (foundC) foundC.timesUsed = (foundC.timesUsed || 0) + 1;
+                if (foundC) {
+                    db.collection("coupons").doc(foundC.id).update({ timesUsed: (foundC.timesUsed || 0) + 1 });
+                }
             }
-            orders.unshift({
+            
+            const newOrder = {
                 id: 'ORD-' + Math.floor(1000 + Math.random() * 9000),
                 date: new Date().toLocaleDateString('mk-MK'),
                 customer: document.getElementById('custName').value,
@@ -1396,14 +1394,16 @@
                 couponCode: activeAppliedCoupon ? activeAppliedCoupon.code : 'Нема',
                 total: Math.max(0, sub - disc),
                 status: 'Во обработка'
-            });
+            };
+
+            await db.collection("orders").add(newOrder);
+
             cart = [];
             activeAppliedCoupon = null;
             saveState();
             updateCartUI();
             closeCheckoutModal();
             showToast(currentLang === 'en' ? 'Successful order in TONKA BOUTIQUE!' : 'Успешна нарачка во ТОНКА БУТИК!');
-            renderAdminData();
         }
 
         function toggleAdminView() {
@@ -1532,12 +1532,10 @@
             showToast('PDF Фактурата се генерира...');
         }
 
-        function deleteOrder(orderId) {
-            if (confirm(`Дали сте сигурни дека сакате да ја избришете нарачката ${orderId}?`)) {
-                orders = orders.filter(o => o.id !== orderId);
-                saveState();
-                renderAdminData();
-                showToast(`Нарачката ${orderId} е избришана`, 'error');
+        async function deleteOrder(docId) {
+            if (confirm(`Дали сте сигурни дека сакате да ја избришете нарачката?`)) {
+                await db.collection("orders").doc(docId).delete();
+                showToast(`Нарачката е избришана`, 'error');
             }
         }
 
@@ -1559,6 +1557,7 @@
 
         function renderInventoryData() {
             const tbody = document.getElementById('inventoryTableBody');
+            if (!tbody) return;
             tbody.innerHTML = products.map(p => {
                 const colorSizes = p.colorSizes || {};
                 const title = getProductTitle(p);
@@ -1572,19 +1571,18 @@
                     <td class="p-4 text-xs font-semibold uppercase">${p.category} / ${p.subcategory}</td>
                     <td class="p-4">${details || 'Нема дефинирано'}</td>
                     <td class="p-4 text-right">
-                        <button onclick="openEditProductModal(${p.id})" class="text-xs font-bold text-espresso hover:underline">${currentLang === 'en' ? 'Edit Variants' : 'Измени Варијанти'}</button>
+                        <button onclick="openEditProductModal('${p.id}')" class="text-xs font-bold text-espresso hover:underline">${currentLang === 'en' ? 'Edit Variants' : 'Измени Варијанти'}</button>
                     </td>
                 </tr>
             `;
             }).join('');
         }
 
-        function savePromoBanner(e) {
+        async function savePromoBanner(e) {
             e.preventDefault();
-            promoBannerData.text = document.getElementById('adminBannerTextInput').value;
-            promoBannerData.active = document.getElementById('adminBannerActiveCheckbox').checked;
-            saveState();
-            initPromoBanner();
+            const text = document.getElementById('adminBannerTextInput').value;
+            const active = document.getElementById('adminBannerActiveCheckbox').checked;
+            await db.collection("settings").doc("banner").set({ text, active });
             showToast('Банерот е зачуван!');
         }
 
@@ -1592,33 +1590,29 @@
             document.getElementById('couponCode').value = 'PROMO' + Math.floor(100 + Math.random()*900);
         }
 
-        function saveCoupon(e) {
+        async function saveCoupon(e) {
             e.preventDefault();
-            coupons.push({
-                id: Date.now(),
+            const newCoupon = {
                 code: document.getElementById('couponCode').value.toUpperCase(),
                 type: document.getElementById('couponType').value,
                 value: parseFloat(document.getElementById('couponValue').value),
                 minOrder: parseFloat(document.getElementById('couponMinOrder').value) || 0,
                 timesUsed: 0,
                 active: true
-            });
-            saveState();
-            renderAdminData();
+            };
+            await db.collection("coupons").add(newCoupon);
             showToast('Купонот е креиран!');
         }
 
-        function toggleCouponStatus(id) {
-            const c = coupons.find(i => i.id === id);
-            if (c) { 
-                c.active = !c.active; 
-                saveState(); 
-                renderAdminData(); 
-                showToast(`Купонот е ${c.active ? 'активиран' : 'деактивиран'}`); 
-            }
+        async function toggleCouponStatus(docId, currentStatus) {
+            await db.collection("coupons").doc(docId).update({ active: !currentStatus });
+            showToast('Статусот на купонот е ажуриран');
         }
 
-        function deleteCoupon(id) { coupons = coupons.filter(c => c.id !== id); saveState(); renderAdminData(); showToast('Избришано', 'error'); }
+        async function deleteCoupon(docId) { 
+            await db.collection("coupons").doc(docId).delete(); 
+            showToast('Избришано', 'error'); 
+        }
 
         function renderAdminData() {
             const rev = orders.filter(o => o.status === 'Испорачано' || o.status === 'Испратено').reduce((s, o) => s + o.total, 0);
@@ -1638,8 +1632,8 @@
                     <td class="p-4 uppercase text-xs font-semibold"><b>${p.category}</b> (${p.subcategory})</td>
                     <td class="p-4 font-bold">${p.price} ден.</td>
                     <td class="p-4 text-right space-x-2">
-                        <button onclick="openEditProductModal(${p.id})" class="text-amber-700"><i class="fa-solid fa-pen"></i></button>
-                        <button onclick="deleteProduct(${p.id})" class="text-rose-600"><i class="fa-solid fa-trash"></i></button>
+                        <button onclick="openEditProductModal('${p.id}')" class="text-amber-700"><i class="fa-solid fa-pen"></i></button>
+                        <button onclick="deleteProduct('${p.id}')" class="text-rose-600"><i class="fa-solid fa-trash"></i></button>
                     </td>
                 </tr>
             `}).join('');
@@ -1674,10 +1668,10 @@
                     <td class="p-4 text-xs font-bold">${c.timesUsed || 0} пати</td>
                     <td class="p-4"><span class="px-2.5 py-1 rounded-full text-xs font-bold ${c.active?'bg-emerald-100 text-emerald-800':'bg-rose-100 text-rose-800'}">${c.active?'🟢 Активен':'🔴 Неактивен'}</span></td>
                     <td class="p-4 text-right space-x-1">
-                        <button onclick="toggleCouponStatus(${c.id})" class="px-3 py-1 bg-warmCream hover:bg-stone-200 text-espresso text-xs font-bold rounded-lg">
+                        <button onclick="toggleCouponStatus('${c.id}', ${c.active})" class="px-3 py-1 bg-warmCream hover:bg-stone-200 text-espresso text-xs font-bold rounded-lg">
                             ${c.active ? 'Деактивирај' : 'Активирај'}
                         </button>
-                        <button onclick="deleteCoupon(${c.id})" class="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg"><i class="fa-solid fa-trash"></i></button>
+                        <button onclick="deleteCoupon('${c.id}')" class="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg"><i class="fa-solid fa-trash"></i></button>
                     </td>
                 </tr>
             `).join('');
@@ -1741,12 +1735,13 @@
 
         function openEditProductModal(id) {
             const p = products.find(item => item.id === id);
+            if (!p) return;
             document.getElementById('productModalTitle').innerText = translations[currentLang].modalProdTitle;
             document.getElementById('prodId').value = p.id;
-            document.getElementById('prodTitleMk').value = p.titleMk || p.title || '';
-            document.getElementById('prodTitleEn').value = p.titleEn || p.title || '';
-            document.getElementById('prodDescMk').value = p.descMk || p.description || '';
-            document.getElementById('prodDescEn').value = p.descEn || p.description || '';
+            document.getElementById('prodTitleMk').value = p.titleMk || '';
+            document.getElementById('prodTitleEn').value = p.titleEn || '';
+            document.getElementById('prodDescMk').value = p.descMk || '';
+            document.getElementById('prodDescEn').value = p.descEn || '';
             document.getElementById('prodCategory').value = p.category;
             document.getElementById('prodSubcategory').value = p.subcategory || 'bluzi';
             document.getElementById('prodPrice').value = p.price;
@@ -1770,7 +1765,7 @@
 
         function closeProductModal() { document.getElementById('productModal').classList.add('hidden'); }
 
-        function saveProduct(e) {
+        async function saveProduct(e) {
             e.preventDefault();
             const id = document.getElementById('prodId').value;
             const titleMk = document.getElementById('prodTitleMk').value;
@@ -1800,39 +1795,1867 @@
                 allImages.push('https://images.unsplash.com/photo-1521572267360-ee0c2909d518?auto=format&fit=crop&w=600&q=80');
             }
 
+            const productData = { titleMk, titleEn, descMk, descEn, category, subcategory, price, oldPrice, isDiscount, colors, colorSizes, images: allImages };
+
             if (id) {
-                const index = products.findIndex(p => p.id === parseInt(id));
-                products[index] = { ...products[index], titleMk, titleEn, descMk, descEn, category, subcategory, price, oldPrice, isDiscount, colors, colorSizes, images: allImages };
+                await db.collection("products").doc(id).update(productData);
                 showToast(currentLang === 'en' ? 'Product updated' : 'Производот е изменет');
             } else {
-                const newId = Date.now();
-                products.push({ id: newId, titleMk, titleEn, descMk, descEn, category, subcategory, price, oldPrice, isDiscount, colors, colorSizes, images: allImages });
+                await db.collection("products").add(productData);
                 showToast(currentLang === 'en' ? 'New product added' : 'Новиот производ е додаден');
             }
 
-            saveState();
             closeProductModal();
-            renderProducts();
-            renderAdminData();
         }
 
-        function deleteProduct(id) {
+        async function deleteProduct(id) {
             if (confirm('Дали сте сигурни за бришење на производот?')) {
-                products = products.filter(p => p.id !== id);
-                saveState();
-                renderProducts();
-                renderAdminData();
+                await db.collection("products").doc(id).delete();
                 showToast('Избришано', 'error');
             }
         }
 
-        function updateOrderStatus(id, status) {
-            const o = orders.find(item => item.id === id);
-            if (o) { o.status = status; saveState(); showToast('Статусот е ажуриран'); }
+        async function updateOrderStatus(id, status) {
+            await db.collection("orders").doc(id).update({ status: status });
+            showToast('Статусот е ажуриран');
         }
 
         function showToast(msg, type='info') {
             const container = document.getElementById('toastContainer');
+            if (!container) return;
+            const t = document.createElement('div');
+            t.className = `p-4 rounded-2xl shadow-xl text-xs font-bold text-white flex items-center gap-3 ${type==='error'?'bg-rose-600':'bg-espresso border border-accentGold/20 text-accentGold'}`;
+            t.innerHTML = `<i class="fa-solid ${type==='error'?'fa-circle-exclamation':'fa-circle-check text-accentGold'}"></i> ${msg}`;
+            container.appendChild(t);
+            setTimeout(() => t.remove(), 3000);
+        }
+    </script>
+</body>
+</html><!DOCTYPE html>
+<html lang="mk" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ТОНКА БУТИК - Ексклузивна Модна Колекција</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- SheetJS for Excel Export -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <!-- html2pdf for PDF Invoices -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <!-- Firebase SDK Compat -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Plus Jakarta Sans', 'sans-serif'],
+                        serif: ['Cormorant Garamond', 'serif'],
+                    },
+                    colors: {
+                        espresso: '#2C221E',
+                        espressoDark: '#1A1311',
+                        warmCream: '#F9F6F0',
+                        accentGold: '#D4AF37',
+                        softTaupe: '#E6DFD5'
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #F9F6F0; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #D4AF37; border-radius: 4px; }
+        
+        .img-zoom-container {
+            position: relative;
+            overflow: hidden;
+        }
+        .img-zoom-container img {
+            transition: transform 0.3s ease;
+            transform-origin: center center;
+        }
+        .img-zoom-container:hover img {
+            transform: scale(1.75);
+        }
+    </style>
+</head>
+<body class="bg-warmCream font-sans text-espresso antialiased pb-12">
+
+    <!-- Announcement Bar -->
+    <div id="promoBanner" class="bg-espresso text-warmCream text-xs py-2.5 px-4 text-center font-medium tracking-widest shadow-sm flex items-center justify-center gap-2 border-b border-accentGold/20">
+        <i class="fa-solid fa-sparkles text-accentGold text-xs"></i>
+        <span id="promoBannerText">✨ Добредојдовте во ТОНКА БУТИК | Бесплатна достава за сите нарачки над 2,500 ден.</span>
+    </div>
+
+    <!-- Main Header Navigation -->
+    <header class="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-softTaupe shadow-sm transition-all duration-200">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-20">
+                
+                <!-- Logo -->
+                <div class="flex-shrink-0">
+                    <a href="#" onclick="showSection('shop-section')" class="flex items-center gap-3 group">
+                        <div class="w-11 h-11 rounded-2xl bg-espresso flex items-center justify-center text-accentGold font-serif font-bold text-2xl shadow-md group-hover:scale-105 transition-transform">
+                            T
+                        </div>
+                        <div class="flex flex-col">
+                            <span class="text-xl font-serif font-bold tracking-widest text-espresso uppercase">ТОНКА</span>
+                            <span class="text-[9px] font-bold tracking-widest text-accentGold uppercase -mt-1">БУТИК</span>
+                        </div>
+                    </a>
+                </div>
+
+                <!-- Search Bar -->
+                <div class="hidden md:flex flex-1 max-w-md mx-8 relative">
+                    <input type="text" id="searchInput" onkeyup="filterProducts()" placeholder="Пребарај блузи, фустани, јакни..." 
+                        class="w-full pl-10 pr-4 py-2.5 bg-warmCream border border-softTaupe rounded-2xl text-xs text-espresso placeholder-stone-400 focus:outline-none focus:bg-white focus:border-espresso transition">
+                    <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-3.5 text-stone-400 text-xs"></i>
+                </div>
+
+                <!-- Action Buttons & Language Switcher -->
+                <div class="flex items-center gap-2 sm:gap-3">
+                    <!-- Language Switcher -->
+                    <div class="flex bg-warmCream border border-softTaupe rounded-2xl p-0.5 text-xs font-bold">
+                        <button onclick="setLanguage('mk')" id="langMkBtn" class="px-2.5 py-1.5 rounded-xl bg-espresso text-accentGold transition">MK</button>
+                        <button onclick="setLanguage('en')" id="langEnBtn" class="px-2.5 py-1.5 rounded-xl text-stone-500 hover:text-espresso transition">EN</button>
+                    </div>
+
+                    <button onclick="toggleWishlistModal()" class="relative p-2.5 text-espresso hover:text-rose-600 hover:bg-rose-50 rounded-2xl transition" title="Омилени">
+                        <i class="fa-solid fa-heart text-lg"></i>
+                        <span id="wishlistBadge" class="absolute -top-1 -right-1 bg-rose-600 text-white text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center shadow-sm scale-0 transition-transform">0</span>
+                    </button>
+
+                    <!-- Inventory Button: VISIBLE ONLY TO ADMIN -->
+                    <button id="inventoryNavBtn" onclick="openInventoryView()" class="hidden items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-2xl border border-softTaupe text-espresso hover:bg-softTaupe/40 transition" title="Залиха и Инвентар">
+                        <i class="fa-solid fa-warehouse text-accentGold"></i>
+                        <span data-i18n="navInventory">Магацин / Залиха</span>
+                    </button>
+
+                    <button onclick="toggleAdminView()" id="adminNavBtn" class="flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-2xl bg-espresso text-accentGold hover:bg-espressoDark transition shadow-sm">
+                        <i class="fa-solid fa-right-to-bracket"></i>
+                        <span id="adminNavText" data-i18n="navLogin">Најава</span>
+                    </button>
+
+                    <button onclick="toggleCartModal()" class="relative p-2.5 text-espresso hover:text-espressoDark hover:bg-softTaupe/30 rounded-2xl transition">
+                        <i class="fa-solid fa-bag-shopping text-lg"></i>
+                        <span id="cartBadge" class="absolute -top-1 -right-1 bg-espresso text-accentGold text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center shadow-sm scale-0 transition-transform">0</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- SHOP SECTION -->
+    <div id="shop-section">
+        <section class="relative bg-espresso text-warmCream overflow-hidden my-6 mx-4 sm:mx-6 lg:mx-8 rounded-3xl shadow-xl border border-accentGold/25">
+            <div class="absolute inset-0 opacity-25 bg-[url('https://images.unsplash.com/photo-1490481651871-ab68de25d43d?auto=format&fit=crop&w=1600&q=80')] bg-cover bg-center"></div>
+            <div class="relative max-w-7xl mx-auto px-6 py-16 sm:py-20 lg:px-8 flex flex-col items-start justify-center">
+                <span class="inline-block px-3.5 py-1 bg-accentGold/15 backdrop-blur-md border border-accentGold/30 rounded-full text-xs font-bold tracking-widest uppercase mb-4 text-accentGold" data-i18n="heroBadge">Ексклузивна Колекција</span>
+                <h1 class="text-3xl sm:text-5xl font-serif font-bold tracking-tight max-w-2xl leading-tight" data-i18n="heroTitle">
+                    Врвен стил и софистицирана елеганција
+                </h1>
+                <p class="mt-3 text-sm sm:text-base text-stone-300 max-w-xl font-light leading-relaxed" data-i18n="heroDesc">
+                    Одберете уникатни парчиња креирани за совршен изглед во секоја пригода.
+                </p>
+                <div class="mt-8 flex flex-wrap gap-4">
+                    <a href="#catalogAnchor" class="px-6 py-3 bg-accentGold text-espressoDark font-bold rounded-2xl shadow-md hover:bg-amber-400 transition transform hover:-translate-y-0.5 text-xs uppercase tracking-wider" data-i18n="heroBtn">Разгледај Каталог</a>
+                </div>
+            </div>
+        </section>
+
+        <main id="catalogAnchor" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-10 scroll-mt-24">
+            <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-softTaupe pb-5">
+                <div>
+                    <h2 class="text-2xl font-serif font-bold text-espresso tracking-tight" data-i18n="catalogTitle">Каталог на производи</h2>
+                    <p class="text-stone-500 text-xs mt-0.5" data-i18n="catalogSubtitle">Филтрирајте според категории и поткатегории</p>
+                </div>
+                
+                <div class="flex items-center gap-2 overflow-x-auto pb-2 md:pb-0 scrollbar-none">
+                    <button onclick="filterCategory('all')" class="cat-btn active px-4 py-2 text-xs font-bold rounded-2xl bg-espresso text-accentGold shadow-sm transition whitespace-nowrap" data-cat="all" data-i18n="catAll">Сите Главни</button>
+                    <button onclick="filterCategory('mazi')" class="cat-btn px-4 py-2 text-xs font-bold rounded-2xl bg-white border border-softTaupe text-espresso hover:bg-warmCream transition whitespace-nowrap" data-cat="mazi" data-i18n="catMazi">👨 Машки</button>
+                    <button onclick="filterCategory('zeni')" class="cat-btn px-4 py-2 text-xs font-bold rounded-2xl bg-white border border-softTaupe text-espresso hover:bg-warmCream transition whitespace-nowrap" data-cat="zeni" data-i18n="catZeni">👩 Женски</button>
+                    <button onclick="filterCategory('deca')" class="cat-btn px-4 py-2 text-xs font-bold rounded-2xl bg-white border border-softTaupe text-espresso hover:bg-warmCream transition whitespace-nowrap" data-cat="deca" data-i18n="catDeca">🧒 Детски</button>
+                    <button onclick="filterCategory('akcija')" class="cat-btn px-4 py-2 text-xs font-bold rounded-2xl bg-rose-50 border border-rose-200 text-rose-700 hover:bg-rose-100 transition whitespace-nowrap" data-cat="akcija" data-i18n="catAkcija">🔥 Акција</button>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-4 gap-8 mt-8">
+                <!-- Sidebar -->
+                <aside class="space-y-6">
+                    <div class="bg-white p-6 rounded-3xl border border-softTaupe/80 shadow-sm">
+                        <h3 class="text-xs font-bold uppercase tracking-wider text-stone-400 mb-4 flex items-center gap-2">
+                            <i class="fa-solid fa-list text-accentGold"></i> <span data-i18n="subcatHeader">Поткатегории</span>
+                        </h3>
+                        <div class="space-y-1.5" id="subcategoriesSidebar">
+                            <button onclick="filterSubcategory('all')" class="subcat-btn active w-full flex items-center justify-between px-4 py-3 rounded-2xl text-xs font-bold bg-espresso text-accentGold shadow-sm transition" data-subcat="all">
+                                <span><i class="fa-solid fa-asterisk mr-2"></i> <span data-i18n="subAll">Сите Поткатегории</span></span>
+                            </button>
+                            <button onclick="filterSubcategory('jakni')" class="subcat-btn w-full flex items-center justify-between px-4 py-3 rounded-2xl text-xs font-bold text-espresso bg-warmCream/60 hover:bg-warmCream border border-softTaupe/40 transition" data-subcat="jakni">
+                                <span><i class="fa-solid fa-vest mr-2 text-stone-400"></i> <span data-i18n="subJakni">Јакни</span></span>
+                            </button>
+                            <button onclick="filterSubcategory('bluzi')" class="subcat-btn w-full flex items-center justify-between px-4 py-3 rounded-2xl text-xs font-bold text-espresso bg-warmCream/60 hover:bg-warmCream border border-softTaupe/40 transition" data-subcat="bluzi">
+                                <span><i class="fa-solid fa-shirt mr-2 text-stone-400"></i> <span data-i18n="subBluzi">Блузи</span></span>
+                            </button>
+                            <button onclick="filterSubcategory('fustani')" class="subcat-btn w-full flex items-center justify-between px-4 py-3 rounded-2xl text-xs font-bold text-espresso bg-warmCream/60 hover:bg-warmCream border border-softTaupe/40 transition" data-subcat="fustani">
+                                <span><i class="fa-solid fa-person-dress mr-2 text-stone-400"></i> <span data-i18n="subFustani">Фустани</span></span>
+                            </button>
+                            <button onclick="filterSubcategory('kaputi')" class="subcat-btn w-full flex items-center justify-between px-4 py-3 rounded-2xl text-xs font-bold text-espresso bg-warmCream/60 hover:bg-warmCream border border-softTaupe/40 transition" data-subcat="kaputi">
+                                <span><i class="fa-solid fa-coat mr-2 text-stone-400"></i> <span data-i18n="subKaputi">Капути</span></span>
+                            </button>
+                            <button onclick="filterSubcategory('pantalonii')" class="subcat-btn w-full flex items-center justify-between px-4 py-3 rounded-2xl text-xs font-bold text-espresso bg-warmCream/60 hover:bg-warmCream border border-softTaupe/40 transition" data-subcat="pantalonii">
+                                <span><i class="fa-solid fa-socks mr-2 text-stone-400"></i> <span data-i18n="subPantalonii">Панталони</span></span>
+                            </button>
+                            <button onclick="filterSubcategory('farmerki')" class="subcat-btn w-full flex items-center justify-between px-4 py-3 rounded-2xl text-xs font-bold text-espresso bg-warmCream/60 hover:bg-warmCream border border-softTaupe/40 transition" data-subcat="farmerki">
+                                <span><i class="fa-solid fa-person-walking mr-2 text-stone-400"></i> <span data-i18n="subFarmerki">Фармерки</span></span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Price Filter -->
+                    <div class="bg-white p-6 rounded-3xl border border-softTaupe/80 shadow-sm space-y-4">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-bold uppercase tracking-wider text-stone-400" data-i18n="priceFilterHeader">Филтер за Цена</span>
+                            <span class="text-xs font-black text-accentGold" id="priceDisplayRange">0 ден. - 10000 ден.</span>
+                        </div>
+                        <input type="range" id="priceRangeSlider" oninput="handlePriceSliderChange(this.value)" class="w-full accent-espresso cursor-pointer">
+                        <div class="flex items-center gap-3">
+                            <input type="number" id="priceMinInput" onchange="handlePriceInputChange()" placeholder="Од" class="w-full px-3 py-2 bg-warmCream border border-softTaupe rounded-xl text-xs font-bold text-center">
+                            <span class="text-stone-400">-</span>
+                            <input type="number" id="priceMaxInput" onchange="handlePriceInputChange()" placeholder="До" class="w-full px-3 py-2 bg-warmCream border border-softTaupe rounded-xl text-xs font-bold text-center">
+                        </div>
+                    </div>
+                </aside>
+
+                <!-- Product Grid -->
+                <div class="lg:col-span-3">
+                    <div id="productGrid" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6"></div>
+
+                    <div id="emptyState" class="hidden text-center py-20 bg-white rounded-3xl border border-softTaupe/80">
+                        <i class="fa-solid fa-box-open text-5xl text-stone-300 mb-4"></i>
+                        <h3 class="text-lg font-bold text-espresso" data-i18n="emptyTitle">Нема пронајдени производи</h3>
+                        <p class="text-stone-500 text-xs mt-1" data-i18n="emptyDesc">Обидете се со промена на цената или изберете друга поткатегорија.</p>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- INVENTORY VIEW -->
+    <div id="inventory-section" class="hidden max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 my-8">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-espresso text-warmCream p-6 rounded-3xl mb-8 shadow-xl border border-accentGold/20">
+            <div>
+                <span class="text-xs font-bold tracking-widest text-accentGold uppercase" data-i18n="invSubtitle">Складиште & Бутик по Бои и Големини</span>
+                <h2 class="text-2xl font-serif font-bold mt-1" data-i18n="invTitle">Детален Увид по Варијанти</h2>
+            </div>
+            <div class="flex items-center gap-2">
+                <button onclick="showSection('admin-section')" class="px-4 py-2.5 bg-stone-800 text-accentGold text-xs font-bold rounded-2xl hover:bg-stone-700 transition" data-i18n="backAdminBtn">
+                    ← Админ Панел
+                </button>
+                <button onclick="showSection('shop-section')" class="px-4 py-2.5 bg-accentGold text-espressoDark text-xs font-bold rounded-2xl hover:bg-amber-400 transition" data-i18n="backShopBtn">
+                    Продавница
+                </button>
+            </div>
+        </div>
+
+        <div class="bg-white border border-softTaupe rounded-3xl shadow-sm overflow-hidden">
+            <div class="p-6 border-b border-softTaupe flex items-center justify-between">
+                <h3 class="font-serif font-bold text-lg text-espresso" data-i18n="invTableTitle">Залиха по Боја и Големини</h3>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="bg-warmCream/60 border-b border-softTaupe text-stone-500 text-xs uppercase font-bold">
+                            <th class="p-4" data-i18n="thProd">Производ</th>
+                            <th class="p-4" data-i18n="thCat">Категорија</th>
+                            <th class="p-4" data-i18n="thStock">🎨 Бои и Големини (Залиха)</th>
+                            <th class="p-4 text-right" data-i18n="thAction">Акции</th>
+                        </tr>
+                    </thead>
+                    <tbody id="inventoryTableBody" class="divide-y divide-softTaupe/50 text-sm"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- ADMIN SECTION -->
+    <div id="admin-section" class="hidden max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 my-8">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-espresso text-warmCream p-6 rounded-3xl mb-8 shadow-xl border border-accentGold/20">
+            <div>
+                <span class="text-xs font-bold tracking-widest text-accentGold uppercase" data-i18n="adminPanelSub">Администраторски Панел</span>
+                <h2 class="text-2xl font-serif font-bold mt-1" data-i18n="adminPanelTitle">Управување со ТОНКА БУТИК</h2>
+            </div>
+            <div class="flex flex-wrap items-center gap-2">
+                <button onclick="openInventoryView()" class="px-3.5 py-2.5 bg-accentGold text-espressoDark text-xs font-bold rounded-2xl hover:bg-amber-400 transition flex items-center gap-1.5">
+                    <i class="fa-solid fa-warehouse"></i> <span data-i18n="adminInvBtn">Магацин & Залиха</span>
+                </button>
+                <button onclick="openAddProductModal()" class="px-3.5 py-2.5 bg-stone-800 border border-stone-700 text-white text-xs font-bold rounded-2xl hover:bg-stone-700 transition flex items-center gap-1.5">
+                    <i class="fa-solid fa-plus"></i> <span data-i18n="adminNewProd">Нов Производ</span>
+                </button>
+                <button onclick="exportOrdersToExcel()" class="px-3.5 py-2.5 bg-emerald-700 text-white text-xs font-bold rounded-2xl hover:bg-emerald-600 transition shadow-md flex items-center gap-1.5">
+                    <i class="fa-solid fa-file-excel"></i> <span data-i18n="adminExport">Експорт Нарачки</span>
+                </button>
+                <button onclick="logoutAdmin()" class="px-3.5 py-2.5 bg-espressoDark text-rose-300 border border-rose-900/40 text-xs font-bold rounded-2xl hover:bg-espresso transition" data-i18n="adminLogout">
+                    Одјави се
+                </button>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+            <div class="bg-white p-5 rounded-3xl border border-softTaupe/80 shadow-sm">
+                <div class="text-stone-400 text-xs font-bold uppercase tracking-wider" data-i18n="statRev">Вкупен Промет</div>
+                <div class="text-2xl font-black text-espresso mt-2" id="statRevenue">0 ден.</div>
+            </div>
+            <div class="bg-white p-5 rounded-3xl border border-softTaupe/80 shadow-sm">
+                <div class="text-stone-400 text-xs font-bold uppercase tracking-wider" data-i18n="statOrders">Вкупно Нарачки</div>
+                <div class="text-2xl font-black text-espresso mt-2" id="statOrdersCount">0</div>
+            </div>
+            <div class="bg-white p-5 rounded-3xl border border-softTaupe/80 shadow-sm">
+                <div class="text-stone-400 text-xs font-bold uppercase tracking-wider" data-i18n="statProds">Активни Производи</div>
+                <div class="text-2xl font-black text-espresso mt-2" id="statProductsCount">0</div>
+            </div>
+            <div class="bg-white p-5 rounded-3xl border border-softTaupe/80 shadow-sm">
+                <div class="text-stone-400 text-xs font-bold uppercase tracking-wider" data-i18n="statCoupons">Активни Купони</div>
+                <div class="text-2xl font-black text-accentGold mt-2" id="statCouponsCount">0</div>
+            </div>
+        </div>
+
+        <div class="flex border-b border-softTaupe mb-6">
+            <button onclick="switchAdminTab('products')" id="tabProductsBtn" class="px-6 py-3 border-b-2 border-espresso font-bold text-espresso text-sm" data-i18n="tabProds">
+                Производи
+            </button>
+            <button onclick="switchAdminTab('orders')" id="tabOrdersBtn" class="px-6 py-3 border-b-2 border-transparent font-semibold text-stone-500 text-sm hover:text-espresso" data-i18n="tabOrders">
+                Пристигнати Нарачки
+            </button>
+            <button onclick="switchAdminTab('coupons')" id="tabCouponsBtn" class="px-6 py-3 border-b-2 border-transparent font-semibold text-stone-500 text-sm hover:text-espresso" data-i18n="tabCoupons">
+                🎟️ Купони & Банер
+            </button>
+        </div>
+
+        <div id="adminProductsView" class="bg-white border border-softTaupe rounded-3xl shadow-sm overflow-hidden">
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="bg-warmCream/60 border-b border-softTaupe text-stone-500 text-xs uppercase font-bold">
+                            <th class="p-4" data-i18n="admThImgTitle">Слика & Наслов</th>
+                            <th class="p-4" data-i18n="admThCat">Категорија & Поткатегорија</th>
+                            <th class="p-4" data-i18n="admThPrice">Цена</th>
+                            <th class="p-4 text-right" data-i18n="admThAction">Акции</th>
+                        </tr>
+                    </thead>
+                    <tbody id="adminProductTableBody" class="divide-y divide-softTaupe/50 text-sm"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <div id="adminOrdersView" class="hidden bg-white border border-softTaupe rounded-3xl shadow-sm overflow-hidden">
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="bg-warmCream/60 border-b border-softTaupe text-stone-500 text-xs uppercase font-bold">
+                            <th class="p-4" data-i18n="ordThId">ИД / Датум</th>
+                            <th class="p-4" data-i18n="ordThCust">Клиент</th>
+                            <th class="p-4" data-i18n="ordThItems">Производи & Детали</th>
+                            <th class="p-4" data-i18n="ordThTotal">Вкупно</th>
+                            <th class="p-4" data-i18n="ordThStatus">Статус / Фактура</th>
+                            <th class="p-4 text-right" data-i18n="ordThDel">Избриши</th>
+                        </tr>
+                    </thead>
+                    <tbody id="adminOrdersTableBody" class="divide-y divide-softTaupe/50 text-sm"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <div id="adminCouponsView" class="hidden space-y-6">
+            <div class="bg-white p-6 rounded-3xl border border-softTaupe/80 shadow-sm space-y-4">
+                <h3 class="text-lg font-serif font-bold text-espresso" data-i18n="bannerSectionTitle">📢 Промотивен Банер на Насловна</h3>
+                <form onsubmit="savePromoBanner(event)" class="space-y-4">
+                    <div>
+                        <label class="block text-xs font-bold uppercase text-stone-500 mb-1" data-i18n="bannerTextLabel">Текст за известување</label>
+                        <input type="text" id="adminBannerTextInput" class="w-full px-4 py-2.5 bg-warmCream border border-softTaupe rounded-2xl text-sm font-semibold focus:outline-none focus:bg-white">
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <input type="checkbox" id="adminBannerActiveCheckbox" class="w-4 h-4 text-espresso rounded">
+                        <label for="adminBannerActiveCheckbox" class="text-xs font-bold text-espresso" data-i18n="bannerShowCheck">Прикажи го банерот</label>
+                        <button type="submit" class="ml-auto px-5 py-2 bg-espresso text-accentGold font-bold text-xs rounded-2xl hover:bg-espressoDark" data-i18n="bannerSaveBtn">Зачувај Банер</button>
+                    </div>
+                </form>
+            </div>
+
+            <div class="bg-white p-6 rounded-3xl border border-softTaupe/80 shadow-sm">
+                <h3 class="text-lg font-serif font-bold text-espresso mb-4" data-i18n="couponAddTitle">Додај нов Купон за Попуст</h3>
+                <form onsubmit="saveCoupon(event)" class="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
+                    <div>
+                        <label class="block text-xs font-bold uppercase text-stone-500 mb-1" data-i18n="coupCodeLabel">Код</label>
+                        <div class="flex gap-2">
+                            <input type="text" id="couponCode" required placeholder="Пр. XXX500" class="w-full px-3 py-2 bg-warmCream border border-softTaupe rounded-2xl text-sm uppercase font-bold focus:outline-none">
+                            <button type="button" onclick="generateRandomCode()" class="px-3 py-2 bg-stone-200 hover:bg-stone-300 text-espresso rounded-2xl text-xs font-bold">🎲</button>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold uppercase text-stone-500 mb-1" data-i18n="coupTypeLabel">Тип</label>
+                        <select id="couponType" class="w-full px-3 py-2 bg-warmCream border border-softTaupe rounded-2xl text-sm font-semibold focus:outline-none">
+                            <option value="fixed" data-i18n="coupFixed">Фиксен (ден.)</option>
+                            <option value="percent" data-i18n="coupPercent">Процент (%)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold uppercase text-stone-500 mb-1" data-i18n="coupValLabel">Вредност</label>
+                        <input type="number" id="couponValue" required placeholder="Пр. 500" class="w-full px-3 py-2 bg-warmCream border border-softTaupe rounded-2xl text-sm font-bold focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold uppercase text-stone-500 mb-1" data-i18n="coupMinLabel">Мин. Нарачка</label>
+                        <input type="number" id="couponMinOrder" placeholder="Пр. 3000" value="3000" class="w-full px-3 py-2 bg-warmCream border border-softTaupe rounded-2xl text-sm font-bold focus:outline-none">
+                    </div>
+                    <button type="submit" class="py-2.5 bg-espresso text-accentGold font-bold rounded-2xl hover:bg-espressoDark transition text-sm" data-i18n="coupCreateBtn">Креирај</button>
+                </form>
+            </div>
+
+            <div class="bg-white border border-softTaupe rounded-3xl shadow-sm overflow-hidden">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-warmCream/60 border-b border-softTaupe text-stone-500 text-xs uppercase font-bold">
+                                <th class="p-4" data-i18n="coupThCode">Код</th>
+                                <th class="p-4" data-i18n="coupThDisc">Попуст</th>
+                                <th class="p-4" data-i18n="coupThMin">Мин. Сума</th>
+                                <th class="p-4" data-i18n="coupThUsed">Искористен</th>
+                                <th class="p-4" data-i18n="coupThStatus">Статус</th>
+                                <th class="p-4 text-right" data-i18n="coupThAction">Акции</th>
+                            </tr>
+                        </thead>
+                        <tbody id="adminCouponsTableBody" class="divide-y divide-softTaupe/50 text-sm"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- WISHLIST MODAL -->
+    <div id="wishlistModal" class="fixed inset-0 z-50 hidden">
+        <div class="absolute inset-0 bg-espresso/60 backdrop-blur-sm" onclick="toggleWishlistModal()"></div>
+        <div class="absolute top-0 right-0 h-full w-full max-w-md bg-white shadow-2xl flex flex-col justify-between z-10">
+            <div class="p-6 border-b border-softTaupe flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <i class="fa-solid fa-heart text-xl text-rose-600"></i>
+                    <h2 class="text-xl font-serif font-bold text-espresso" data-i18n="wishTitle">Омилени Производи</h2>
+                </div>
+                <button onclick="toggleWishlistModal()" class="p-2 text-stone-400 hover:text-espresso rounded-full">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+            <div id="wishlistItemsContainer" class="p-6 flex-1 overflow-y-auto space-y-4 custom-scrollbar"></div>
+        </div>
+    </div>
+
+    <!-- QUICK VIEW MODAL -->
+    <div id="quickViewModal" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4">
+        <div class="absolute inset-0 bg-espresso/60 backdrop-blur-sm" onclick="closeQuickView()"></div>
+        <div class="relative bg-white rounded-3xl max-w-4xl w-full shadow-2xl overflow-hidden z-10 flex flex-col md:flex-row max-h-[90vh]">
+            <button onclick="closeQuickView()" class="absolute top-4 right-4 z-20 w-10 h-10 bg-white/90 shadow-md rounded-full flex items-center justify-center text-espresso hover:bg-white transition">
+                <i class="fa-solid fa-xmark text-lg"></i>
+            </button>
+
+            <div class="md:w-1/2 bg-warmCream p-6 flex flex-col items-center justify-center border-b md:border-b-0 md:border-r border-softTaupe">
+                <div class="img-zoom-container w-full h-80 sm:h-96 rounded-2xl shadow-sm cursor-zoom-in bg-white" id="qvZoomBox" onmousemove="handleZoom(event)" onmouseleave="resetZoom()">
+                    <img id="qvMainImage" src="" class="w-full h-full object-cover">
+                </div>
+                <p class="text-[11px] text-stone-400 mt-2 font-medium" data-i18n="zoomHint"><i class="fa-solid fa-magnifying-glass-plus"></i> Премини преку сликата за зумирање</p>
+                <div id="qvThumbnails" class="flex gap-2 mt-4 overflow-x-auto max-w-full py-1"></div>
+            </div>
+
+            <div class="md:w-1/2 p-8 flex flex-col justify-between overflow-y-auto custom-scrollbar">
+                <div>
+                    <span id="qvCategory" class="text-xs font-bold text-accentGold uppercase tracking-wider"></span>
+                    <h2 id="qvTitle" class="text-3xl font-serif font-bold text-espresso mt-1 leading-tight"></h2>
+                    
+                    <div class="flex items-center gap-3 mt-3">
+                        <span id="qvPrice" class="text-3xl font-black text-espresso"></span>
+                        <span id="qvOldPrice" class="text-lg font-bold text-stone-400 line-through hidden"></span>
+                        <span id="qvDiscountBadge" class="hidden px-2.5 py-1 bg-rose-100 text-rose-700 text-xs font-black rounded-lg"></span>
+                    </div>
+
+                    <div class="mt-4 pt-4 border-t border-softTaupe">
+                        <h4 class="text-xs font-bold uppercase text-stone-400" data-i18n="descHeader">Опис:</h4>
+                        <p id="qvDescription" class="text-sm text-stone-600 mt-1 leading-relaxed"></p>
+                    </div>
+
+                    <div class="mt-4">
+                        <label class="block text-xs font-bold uppercase text-stone-500 mb-2" data-i18n="colorLabel">Избери боја:</label>
+                        <div id="qvColors" class="flex flex-wrap gap-2"></div>
+                    </div>
+
+                    <div class="mt-4">
+                        <label class="block text-xs font-bold uppercase text-stone-500 mb-2" data-i18n="sizeLabel">Избери големина:</label>
+                        <div id="qvSizes" class="flex flex-wrap gap-2"></div>
+                    </div>
+
+                    <div class="mt-4">
+                        <label class="block text-xs font-bold uppercase text-stone-500 mb-2" data-i18n="qtyLabel">Количина:</label>
+                        <div class="flex items-center gap-3">
+                            <button onclick="adjustQvQty(-1)" class="w-9 h-9 rounded-2xl bg-warmCream font-bold text-espresso">-</button>
+                            <span id="qvQty" class="font-bold text-espresso w-8 text-center text-lg">1</span>
+                            <button onclick="adjustQvQty(1)" class="w-9 h-9 rounded-2xl bg-warmCream font-bold text-espresso">+</button>
+                        </div>
+                    </div>
+                </div>
+
+                <button onclick="addQvToCart()" class="mt-8 w-full py-4 bg-espresso hover:bg-espressoDark text-accentGold font-bold rounded-2xl shadow-xl transition flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-cart-plus"></i> <span data-i18n="addToCartBtn">Додај во кошничка</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- CART MODAL -->
+    <div id="cartModal" class="fixed inset-0 z-50 hidden">
+        <div class="absolute inset-0 bg-espresso/60 backdrop-blur-sm" onclick="toggleCartModal()"></div>
+        <div class="absolute top-0 right-0 h-full w-full max-w-md bg-white shadow-2xl flex flex-col justify-between z-10">
+            <div class="p-6 border-b border-softTaupe flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <i class="fa-solid fa-bag-shopping text-xl text-espresso"></i>
+                    <h2 class="text-xl font-serif font-bold text-espresso" data-i18n="cartTitle">Вашата кошничка</h2>
+                </div>
+                <button onclick="toggleCartModal()" class="p-2 text-stone-400 hover:text-espresso rounded-full">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+
+            <div id="cartItemsContainer" class="p-6 flex-1 overflow-y-auto space-y-4 custom-scrollbar"></div>
+
+            <div class="p-6 border-t border-softTaupe bg-warmCream/50 space-y-3">
+                <div class="flex gap-2">
+                    <input type="text" id="cartCouponInput" placeholder="Промо код (напр. XXX500)" class="flex-1 px-3 py-2 bg-white border border-softTaupe rounded-2xl text-xs uppercase font-bold focus:outline-none">
+                    <button onclick="applyCartCoupon()" class="px-4 py-2 bg-espresso text-accentGold text-xs font-bold rounded-2xl" data-i18n="applyCouponBtn">Примени</button>
+                </div>
+                <div id="couponAppliedMsg" class="hidden text-xs text-emerald-700 font-bold flex justify-between">
+                    <span data-i18n="appliedCouponText">Аплициран купон:</span>
+                    <span id="couponDiscountText">-0 ден.</span>
+                </div>
+                <div class="flex items-center justify-between text-espresso font-bold text-lg">
+                    <span data-i18n="totalText">Вкупно:</span>
+                    <span id="cartTotalPrice">0 ден.</span>
+                </div>
+                <button onclick="openCheckoutModal()" class="w-full py-3.5 bg-espresso hover:bg-espressoDark text-accentGold font-bold rounded-2xl shadow-lg transition" data-i18n="checkoutBtn">
+                    Заврши Нарачка
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ADMIN LOGIN MODAL -->
+    <div id="loginModal" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4">
+        <div class="absolute inset-0 bg-espresso/60 backdrop-blur-sm" onclick="closeLoginModal()"></div>
+        <div class="relative bg-white rounded-3xl p-8 max-w-sm w-full shadow-2xl z-10">
+            <h3 class="text-2xl font-serif font-bold text-espresso text-center" data-i18n="loginTitle">Админ Најава</h3>
+            <p class="text-xs text-stone-400 text-center mt-1" data-i18n="loginSubtitle">Внесете корисничко име и лозинка</p>
+            <form onsubmit="handleLogin(event)" class="space-y-4 mt-6">
+                <div>
+                    <label class="block text-xs font-bold uppercase text-stone-500 mb-1" data-i18n="usernameLabel">Корисничко име</label>
+                    <input type="text" id="loginUsername" required autocomplete="off" class="w-full px-4 py-2.5 bg-warmCream border border-softTaupe rounded-2xl text-sm focus:bg-white focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold uppercase text-stone-500 mb-1" data-i18n="passwordLabel">Лозинка</label>
+                    <input type="password" id="loginPassword" required autocomplete="new-password" class="w-full px-4 py-2.5 bg-warmCream border border-softTaupe rounded-2xl text-sm focus:bg-white focus:outline-none">
+                </div>
+                <button type="submit" class="w-full py-3 bg-espresso text-accentGold font-bold rounded-2xl hover:bg-espressoDark transition" data-i18n="loginSubmitBtn">Најави се</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- CHECKOUT MODAL -->
+    <div id="checkoutModal" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4">
+        <div class="absolute inset-0 bg-espresso/60 backdrop-blur-sm" onclick="closeCheckoutModal()"></div>
+        <div class="relative bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl z-10">
+            <h3 class="text-2xl font-serif font-bold text-espresso" data-i18n="checkoutTitle">Податоци за достава</h3>
+            <form onsubmit="submitOrder(event)" class="space-y-4 mt-4">
+                <div>
+                    <label class="block text-xs font-bold uppercase text-stone-500 mb-1" data-i18n="custNameLabel">Име и Презиме</label>
+                    <input type="text" id="custName" required placeholder="Марко Петровски" class="w-full px-4 py-2.5 bg-warmCream border border-softTaupe rounded-2xl text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold uppercase text-stone-500 mb-1" data-i18n="custPhoneLabel">Телефонски број</label>
+                    <input type="tel" id="custPhone" required placeholder="07X XXX XXX" class="w-full px-4 py-2.5 bg-warmCream border border-softTaupe rounded-2xl text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold uppercase text-stone-500 mb-1" data-i18n="custAddrLabel">Адреса и Град</label>
+                    <input type="text" id="custAddress" required placeholder="Ул. Партизанска бр. 10, Скопје" class="w-full px-4 py-2.5 bg-warmCream border border-softTaupe rounded-2xl text-sm">
+                </div>
+                <button type="submit" class="w-full py-3.5 bg-espresso text-accentGold font-bold rounded-2xl shadow-md hover:bg-espressoDark" data-i18n="orderConfirmBtn">Потврди Нарачка</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- ADD/EDIT PRODUCT MODAL -->
+    <div id="productModal" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4">
+        <div class="absolute inset-0 bg-espresso/60 backdrop-blur-sm" onclick="closeProductModal()"></div>
+        <div class="relative bg-white rounded-3xl p-8 max-w-xl w-full shadow-2xl z-10 max-h-[90vh] overflow-y-auto custom-scrollbar">
+            <h3 class="text-2xl font-serif font-bold text-espresso" id="productModalTitle" data-i18n="modalProdTitle">Додај Нов Производ</h3>
+            <form onsubmit="saveProduct(event)" class="space-y-4 mt-4">
+                <input type="hidden" id="prodId">
+                
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-bold uppercase text-stone-500 mb-1">🇲🇰 Наслов (MK)</label>
+                        <input type="text" id="prodTitleMk" required placeholder="Блуза со Знакче" class="w-full px-4 py-2 bg-warmCream border border-softTaupe rounded-2xl text-sm font-bold">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold uppercase text-stone-500 mb-1">🇬🇧 Title (EN)</label>
+                        <input type="text" id="prodTitleEn" required placeholder="T-Shirt with Logo" class="w-full px-4 py-2 bg-warmCream border border-softTaupe rounded-2xl text-sm font-bold">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-bold uppercase text-stone-500 mb-1">🇲🇰 Опис (MK)</label>
+                        <textarea id="prodDescMk" rows="2" placeholder="Премиум памучна блуза..." class="w-full px-4 py-2 bg-warmCream border border-softTaupe rounded-2xl text-sm"></textarea>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold uppercase text-stone-500 mb-1">🇬🇧 Description (EN)</label>
+                        <textarea id="prodDescEn" rows="2" placeholder="Premium cotton blouse..." class="w-full px-4 py-2 bg-warmCream border border-softTaupe rounded-2xl text-sm"></textarea>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-bold uppercase text-stone-500 mb-1" data-i18n="lblCat">Категорија</label>
+                        <select id="prodCategory" class="w-full px-3 py-2 bg-warmCream border border-softTaupe rounded-2xl text-sm">
+                            <option value="mazi" data-i18n="catMazi">👨 Машки</option>
+                            <option value="zeni" data-i18n="catZeni">👩 Женски</option>
+                            <option value="deca" data-i18n="catDeca">🧒 Детски</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold uppercase text-stone-500 mb-1" data-i18n="lblSubcat">Поткатегорија</label>
+                        <select id="prodSubcategory" class="w-full px-3 py-2 bg-warmCream border border-softTaupe rounded-2xl text-sm font-bold">
+                            <option value="jakni" data-i18n="subJakni">🧥 Јакни</option>
+                            <option value="bluzi" data-i18n="subBluzi">👔 Блузи</option>
+                            <option value="fustani" data-i18n="subFustani">👗 Фустани</option>
+                            <option value="kaputi" data-i18n="subKaputi">🧥 Капути</option>
+                            <option value="pantalonii" data-i18n="subPantalonii">👖 Панталони</option>
+                            <option value="farmerki" data-i18n="subFarmerki">👖 Фармерки</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-bold uppercase text-stone-500 mb-1" data-i18n="lblPrice">Цена (ден.)</label>
+                        <input type="number" id="prodPrice" required class="w-full px-3 py-2 bg-warmCream border border-softTaupe rounded-2xl text-sm font-bold">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold uppercase text-stone-500 mb-1" data-i18n="lblOldPrice">Стара Цена</label>
+                        <input type="number" id="prodOldPrice" class="w-full px-3 py-2 bg-warmCream border border-softTaupe rounded-2xl text-sm font-bold">
+                    </div>
+                </div>
+                <div class="flex items-center gap-2 p-3 bg-rose-50 rounded-2xl">
+                    <input type="checkbox" id="prodIsDiscount" class="w-4 h-4 text-rose-600 rounded">
+                    <label for="prodIsDiscount" class="text-xs font-bold text-rose-800" data-i18n="lblDiscountCheck">Прикажи во секцијата 🔥 Акција</label>
+                </div>
+                
+                <div>
+                    <label class="block text-xs font-bold uppercase text-stone-500 mb-1" data-i18n="lblColorsInput">Бои (одвоени со запирка)</label>
+                    <div class="flex gap-2">
+                        <input type="text" id="prodColorsInput" value="Бела, Црна" class="w-full px-4 py-2 bg-warmCream border border-softTaupe rounded-2xl text-sm font-bold">
+                        <button type="button" onclick="generateColorSizeConfig()" class="px-4 py-2 bg-espresso text-accentGold text-xs font-bold rounded-2xl whitespace-nowrap" data-i18n="genSizesBtn">Генерирај Големини</button>
+                    </div>
+                </div>
+
+                <div class="p-4 bg-warmCream rounded-2xl border border-softTaupe space-y-3">
+                    <h4 class="text-xs font-black uppercase text-espresso" data-i18n="configSizesHeader"><i class="fa-solid fa-shirt text-accentGold"></i> Подеси големини за секоја боја поединечно:</h4>
+                    <div id="colorSizesConfigContainer" class="space-y-3 mt-2"></div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold uppercase text-stone-500 mb-1" data-i18n="lblUploadImgs">Прикачи повеќе слики од компјутер</label>
+                    <input type="file" id="prodImageUpload" multiple accept="image/*" onchange="handleFileUpload(event)" class="w-full text-xs text-stone-500 file:mr-4 file:py-2 file:px-4 file:rounded-2xl file:border-0 file:text-xs file:font-semibold file:bg-espresso file:text-accentGold hover:file:bg-espressoDark">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold uppercase text-stone-500 mb-1" data-i18n="lblUrlImgs">Или URL на повеќе слики (одвоени со запирка)</label>
+                    <textarea id="prodImagesUrl" rows="2" placeholder="https://..., https://..." class="w-full px-4 py-2 bg-warmCream border border-softTaupe rounded-2xl text-sm"></textarea>
+                </div>
+
+                <div id="imagePreviewContainer" class="flex gap-2 overflow-x-auto py-2"></div>
+
+                <button type="submit" class="w-full py-3 bg-espresso text-accentGold font-bold rounded-2xl" data-i18n="saveProdBtn">Зачувај Производ</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- INVOICE TEMPLATE CONTAINER -->
+    <div class="hidden">
+        <div id="invoiceTemplateContainer"></div>
+    </div>
+
+    <!-- TOAST NOTIFICATIONS -->
+    <div id="toastContainer" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+    <script>
+        // ================= FIREBASE CONFIGURATION (Вашите точни податоци) =================
+        const firebaseConfig = {
+            apiKey: "AIzaSyBWbp0v73xa_19_4VWSDQ373fJDi2m6EqU",
+            authDomain: "tonka-butik.firebaseapp.com",
+            projectId: "tonka-butik",
+            storageBucket: "tonka-butik.firebasestorage.app",
+            messagingSenderId: "241470724274",
+            appId: "1:24147072474:web:4d731934403c873f7051ab",
+            measurementId: "G-VVYSPQG044"
+        };
+
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        // TRANSLATIONS DICTIONARY
+        const translations = {
+            mk: {
+                promoBannerText: "✨ Добредојдовте во ТОНКА БУТИК | Бесплатна достава за сите нарачки над 2,500 ден.",
+                navInventory: "Магацин / Залиха",
+                navLogin: "Најава",
+                navAdmin: "Админ Панел",
+                heroBadge: "Ексклузивна Колекција",
+                heroTitle: "Врвен стил и софистицирана елеганција",
+                heroDesc: "Одберете уникатни парчиња креирани за совршен изглед во секоја пригода.",
+                heroBtn: "Разгледај Каталог",
+                catalogTitle: "Каталог на производи",
+                catalogSubtitle: "Филтрирајте според категории и поткатегории",
+                catAll: "Сите Главни",
+                catMazi: "👨 Машки",
+                catZeni: "👩 Женски",
+                catDeca: "🧒 Детски",
+                catAkcija: "🔥 Акција",
+                subcatHeader: "Поткатегории",
+                subAll: "Сите Поткатегории",
+                subJakni: "Јакни",
+                subBluzi: "Блузи",
+                subFustani: "Фустани",
+                subKaputi: "Капути",
+                subPantalonii: "Панталони",
+                subFarmerki: "Фармерки",
+                priceFilterHeader: "Филтер за Цена",
+                emptyTitle: "Нема пронајдени производи",
+                emptyDesc: "Обидете се со промена на цената или изберете друга поткатегорија.",
+                invSubtitle: "Складиште & Бутик по Бои и Големини",
+                invTitle: "Детален Увид по Варијанти",
+                backAdminBtn: "← Админ Панел",
+                backShopBtn: "Продавница",
+                invTableTitle: "Залиха по Боја и Големини",
+                thProd: "Производ",
+                thCat: "Категорија",
+                thStock: "🎨 Бои и Големини (Залиха)",
+                thAction: "Акции",
+                adminPanelSub: "Администраторски Панел",
+                adminPanelTitle: "Управување со ТОНКА БУТИК",
+                adminInvBtn: "Магацин & Залиха",
+                adminNewProd: "Нов Производ",
+                adminExport: "Експорт Нарачки",
+                adminLogout: "Одјави се",
+                statRev: "Вкупен Промет",
+                statOrders: "Вкупно Нарачки",
+                statProds: "Активни Производи",
+                statCoupons: "Активни Купони",
+                tabProds: "Производи",
+                tabOrders: "Пристигнати Нарачки",
+                tabCoupons: "🎟️ Купони & Банер",
+                admThImgTitle: "Слика & Наслов",
+                admThCat: "Категорија & Поткатегорија",
+                admThPrice: "Цена",
+                admThAction: "Акции",
+                ordThId: "ИД / Датум",
+                ordThCust: "Клиент",
+                ordThItems: "Производи & Детали",
+                ordThTotal: "Вкупно",
+                ordThStatus: "Статус / Фактура",
+                ordThDel: "Избриши",
+                bannerSectionTitle: "📢 Промотивен Банер на Насловна",
+                bannerTextLabel: "Текст за известување",
+                bannerShowCheck: "Прикажи го банерот",
+                bannerSaveBtn: "Зачувај Банер",
+                couponAddTitle: "Додај нов Купон за Попуст",
+                coupCodeLabel: "Код",
+                coupTypeLabel: "Тип",
+                coupFixed: "Фиксен (ден.)",
+                coupPercent: "Процент (%)",
+                coupValLabel: "Вредност",
+                coupMinLabel: "Мин. Нарачка",
+                coupCreateBtn: "Креирај",
+                coupThCode: "Код",
+                coupThDisc: "Попуст",
+                coupThMin: "Мин. Сума",
+                coupThUsed: "Искористен",
+                coupThStatus: "Статус",
+                coupThAction: "Акции",
+                wishTitle: "Омилени Производи",
+                zoomHint: "Премини преку сликата за зумирање",
+                descHeader: "Опис:",
+                colorLabel: "Избери боја:",
+                sizeLabel: "Избери големина:",
+                qtyLabel: "Количина:",
+                addToCartBtn: "Додај во кошничка",
+                cartTitle: "Вашата кошничка",
+                applyCouponBtn: "Примени",
+                appliedCouponText: "Аплициран купон:",
+                totalText: "Вкупно:",
+                checkoutBtn: "Заврши Нарачка",
+                loginTitle: "Админ Најава",
+                loginSubtitle: "Внесете корисничко име и лозинка",
+                usernameLabel: "Корисничко име",
+                passwordLabel: "Лозинка",
+                loginSubmitBtn: "Најави се",
+                checkoutTitle: "Податоци за достава",
+                custNameLabel: "Име и Презиме",
+                custPhoneLabel: "Телефонски број",
+                custAddrLabel: "Адреса и Град",
+                orderConfirmBtn: "Потврди Нарачка",
+                modalProdTitle: "Додај Нов Производ",
+                lblTitle: "Наслов",
+                lblDesc: "Опис",
+                lblCat: "Категорија",
+                lblSubcat: "Поткатегорија",
+                lblPrice: "Цена (ден.)",
+                lblOldPrice: "Стара Цена",
+                lblDiscountCheck: "Прикажи во секцијата 🔥 Акција",
+                lblColorsInput: "Бои (одвоени со запирка)",
+                genSizesBtn: "Генерирај Големини",
+                configSizesHeader: "Подеси големини за секоја боја поединечно:",
+                lblUploadImgs: "Прикачи повеќе слики од компјутер",
+                lblUrlImgs: "Или URL на повеќе слики (одвоени со запирка)",
+                saveProdBtn: "Зачувај Производ"
+            },
+            en: {
+                promoBannerText: "✨ Welcome to TONKA BOUTIQUE | Free shipping for all orders over 2,500 ден.",
+                navInventory: "Warehouse / Stock",
+                navLogin: "Login",
+                navAdmin: "Admin Panel",
+                heroBadge: "Exclusive Collection",
+                heroTitle: "Supreme Style & Sophisticated Elegance",
+                heroDesc: "Choose unique pieces crafted for a perfect look on every occasion.",
+                heroBtn: "Browse Catalog",
+                catalogTitle: "Product Catalog",
+                catalogSubtitle: "Filter by categories and subcategories",
+                catAll: "All Main",
+                catMazi: "👨 Men",
+                catZeni: "👩 Women",
+                catDeca: "🧒 Kids",
+                catAkcija: "🔥 Sale",
+                subcatHeader: "Subcategories",
+                subAll: "All Subcategories",
+                subJakni: "Jackets",
+                subBluzi: "Blouses",
+                subFustani: "Dresses",
+                subKaputi: "Coats",
+                subPantalonii: "Pants",
+                subFarmerki: "Jeans",
+                priceFilterHeader: "Price Filter",
+                emptyTitle: "No products found",
+                emptyDesc: "Try changing the price filter or selecting another subcategory.",
+                invSubtitle: "Warehouse & Boutique by Colors & Sizes",
+                invTitle: "Detailed Variant Overview",
+                backAdminBtn: "← Admin Panel",
+                backShopBtn: "Store",
+                invTableTitle: "Stock by Color & Size",
+                thProd: "Product",
+                thCat: "Category",
+                thStock: "🎨 Colors & Sizes (Stock)",
+                thAction: "Actions",
+                adminPanelSub: "Administrator Panel",
+                adminPanelTitle: "Manage TONKA BOUTIQUE",
+                adminInvBtn: "Warehouse & Stock",
+                adminNewProd: "New Product",
+                adminExport: "Export Orders",
+                adminLogout: "Logout",
+                statRev: "Total Revenue",
+                statOrders: "Total Orders",
+                statProds: "Active Products",
+                statCoupons: "Active Coupons",
+                tabProds: "Products",
+                tabOrders: "Incoming Orders",
+                tabCoupons: "🎟️ Coupons & Banner",
+                admThImgTitle: "Image & Title",
+                admThCat: "Category & Subcategory",
+                admThPrice: "Price",
+                admThAction: "Actions",
+                ordThId: "ID / Date",
+                ordThCust: "Customer",
+                ordThItems: "Products & Details",
+                ordThTotal: "Total",
+                ordThStatus: "Status / Invoice",
+                ordThDel: "Delete",
+                bannerSectionTitle: "📢 Homepage Promo Banner",
+                bannerTextLabel: "Notification text",
+                bannerShowCheck: "Show banner",
+                bannerSaveBtn: "Save Banner",
+                couponAddTitle: "Add New Discount Coupon",
+                coupCodeLabel: "Code",
+                coupTypeLabel: "Type",
+                coupFixed: "Fixed (den.)",
+                coupPercent: "Percent (%)",
+                coupValLabel: "Value",
+                coupMinLabel: "Min. Order",
+                coupCreateBtn: "Create",
+                coupThCode: "Code",
+                coupThDisc: "Discount",
+                coupThMin: "Min. Amount",
+                coupThUsed: "Used",
+                coupThStatus: "Status",
+                coupThAction: "Actions",
+                wishTitle: "Favorite Products",
+                zoomHint: "Hover over image to zoom",
+                descHeader: "Description:",
+                colorLabel: "Select color:",
+                sizeLabel: "Select size:",
+                qtyLabel: "Quantity:",
+                addToCartBtn: "Add to cart",
+                cartTitle: "Your Shopping Cart",
+                applyCouponBtn: "Apply",
+                appliedCouponText: "Applied coupon:",
+                totalText: "Total:",
+                checkoutBtn: "Complete Order",
+                loginTitle: "Admin Login",
+                loginSubtitle: "Enter username and password",
+                usernameLabel: "Username",
+                passwordLabel: "Password",
+                loginSubmitBtn: "Login",
+                checkoutTitle: "Shipping Details",
+                custNameLabel: "Full Name",
+                custPhoneLabel: "Phone Number",
+                custAddrLabel: "Address and City",
+                orderConfirmBtn: "Confirm Order",
+                modalProdTitle: "Add New Product",
+                lblTitle: "Title",
+                lblDesc: "Description",
+                lblCat: "Category",
+                lblSubcat: "Subcategory",
+                lblPrice: "Price (den.)",
+                lblOldPrice: "Old Price",
+                lblDiscountCheck: "Show in 🔥 Sale section",
+                lblColorsInput: "Colors (comma separated)",
+                genSizesBtn: "Generate Sizes",
+                configSizesHeader: "Configure sizes for each color individually:",
+                lblUploadImgs: "Upload multiple images from computer",
+                lblUrlImgs: "Or image URLs (comma separated)",
+                saveProdBtn: "Save Product"
+            }
+        };
+
+        let currentLang = 'mk';
+
+        function setLanguage(lang) {
+            currentLang = lang;
+            document.getElementById('langMkBtn').className = lang === 'mk' ? "px-2.5 py-1.5 rounded-xl bg-espresso text-accentGold transition" : "px-2.5 py-1.5 rounded-xl text-stone-500 hover:text-espresso transition";
+            document.getElementById('langEnBtn').className = lang === 'en' ? "px-2.5 py-1.5 rounded-xl bg-espresso text-accentGold transition" : "px-2.5 py-1.5 rounded-xl text-stone-500 hover:text-espresso transition";
+
+            document.querySelectorAll('[data-i18n]').forEach(el => {
+                const key = el.getAttribute('data-i18n');
+                if (translations[lang][key]) {
+                    el.innerText = translations[lang][key];
+                }
+            });
+
+            checkAdminState();
+            renderProducts();
+            updateCartUI();
+            updateWishlistUI();
+            if (isAdminLoggedIn) renderAdminData();
+        }
+
+        let products = [];
+        let orders = [];
+        let coupons = [];
+        let wishlist = JSON.parse(localStorage.getItem('wishlist')) || [];
+        let cart = JSON.parse(localStorage.getItem('cart')) || [];
+        let promoBannerData = { text: '✨ Добредојдовте во ТОНКА БУТИК | Бесплатна достава за нарачки над 2,500 ден.', active: true };
+
+        let isAdminLoggedIn = false;
+        let currentCategory = 'all';
+        let currentSubcategory = 'all';
+        let activeAppliedCoupon = null;
+        let currentUploadedImages = [];
+
+        let currentQvProduct = null;
+        let currentQvSelectedColor = '';
+        let currentQvSelectedSize = '';
+        let currentQvQty = 1;
+
+        function getProductTitle(p) {
+            if (currentLang === 'en') {
+                return p.titleEn || p.titleMk || p.title || 'Product';
+            }
+            return p.titleMk || p.title || p.titleEn || 'Производ';
+        }
+
+        function getProductDesc(p) {
+            if (currentLang === 'en') {
+                return p.descEn || p.descMk || p.description || '';
+            }
+            return p.descMk || p.description || p.descEn || '';
+        }
+
+        // ================= FIREBASE REALTIME SYNC =================
+        function initFirebaseListeners() {
+            db.collection("products").onSnapshot((snapshot) => {
+                products = [];
+                snapshot.forEach((doc) => {
+                    products.push({ id: doc.id, ...doc.data() });
+                });
+                recalculatePriceBounds();
+                renderProducts();
+                if (isAdminLoggedIn) renderAdminData();
+            });
+
+            db.collection("orders").onSnapshot((snapshot) => {
+                orders = [];
+                snapshot.forEach((doc) => {
+                    orders.push({ id: doc.id, ...doc.data() });
+                });
+                if (isAdminLoggedIn) renderAdminData();
+            });
+
+            db.collection("coupons").onSnapshot((snapshot) => {
+                coupons = [];
+                snapshot.forEach((doc) => {
+                    coupons.push({ id: doc.id, ...doc.data() });
+                });
+                if (isAdminLoggedIn) renderAdminData();
+            });
+
+            db.collection("settings").doc("banner").onSnapshot((doc) => {
+                if (doc.exists) {
+                    promoBannerData = doc.data();
+                    initPromoBanner();
+                }
+            });
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            initFirebaseListeners();
+            updateCartUI();
+            updateWishlistUI();
+            checkAdminState();
+        });
+
+        function saveState() {
+            localStorage.setItem('wishlist', JSON.stringify(wishlist));
+            localStorage.setItem('cart', JSON.stringify(cart));
+        }
+
+        function initPromoBanner() {
+            const banner = document.getElementById('promoBanner');
+            const textEl = document.getElementById('promoBannerText');
+            if (promoBannerData.active) {
+                banner.classList.remove('hidden');
+                textEl.innerText = promoBannerData.text;
+            } else {
+                banner.classList.add('hidden');
+            }
+        }
+
+        function recalculatePriceBounds() {
+            const activeProds = products.filter(p => {
+                let matchesCat = (currentCategory === 'all') || (currentCategory === 'akcija' ? (p.isDiscount || p.oldPrice > p.price) : p.category === currentCategory);
+                let matchesSubcat = (currentSubcategory === 'all') || (p.subcategory === currentSubcategory);
+                return matchesCat && matchesSubcat;
+            });
+
+            const min = activeProds.length > 0 ? Math.min(...activeProds.map(p => p.price)) : 0;
+            const max = activeProds.length > 0 ? Math.max(...activeProds.map(p => p.price)) : 10000;
+
+            document.getElementById('priceMinInput').value = min;
+            document.getElementById('priceMaxInput').value = max;
+            const slider = document.getElementById('priceRangeSlider');
+            slider.min = min;
+            slider.max = max;
+            slider.value = max;
+            updatePriceDisplay();
+        }
+
+        function handlePriceSliderChange(val) {
+            document.getElementById('priceMaxInput').value = val;
+            updatePriceDisplay();
+            renderProducts();
+        }
+
+        function handlePriceInputChange() {
+            updatePriceDisplay();
+            renderProducts();
+        }
+
+        function updatePriceDisplay() {
+            const min = document.getElementById('priceMinInput').value || 0;
+            const max = document.getElementById('priceMaxInput').value || 10000;
+            document.getElementById('priceDisplayRange').innerText = `${parseInt(min).toLocaleString()} ден. - ${parseInt(max).toLocaleString()} ден.`;
+        }
+
+        function renderProducts() {
+            const grid = document.getElementById('productGrid');
+            const emptyState = document.getElementById('emptyState');
+            if (!grid) return;
+            grid.innerHTML = '';
+
+            const minP = parseFloat(document.getElementById('priceMinInput').value) || 0;
+            const maxP = parseFloat(document.getElementById('priceMaxInput').value) || 999999;
+
+            const filtered = products.filter(p => {
+                let matchesCat = (currentCategory === 'all') || (currentCategory === 'akcija' ? (p.isDiscount || p.oldPrice > p.price) : p.category === currentCategory);
+                let matchesSubcat = (currentSubcategory === 'all') || (p.subcategory === currentSubcategory);
+                let matchesPrice = p.price >= minP && p.price <= maxP;
+                const query = document.getElementById('searchInput').value.toLowerCase();
+                const title = getProductTitle(p).toLowerCase();
+                const matchesSearch = title.includes(query);
+                return matchesCat && matchesSubcat && matchesPrice && matchesSearch;
+            });
+
+            if (filtered.length === 0) {
+                emptyState.classList.remove('hidden');
+            } else {
+                emptyState.classList.add('hidden');
+                filtered.forEach(p => {
+                    const mainImg = (p.images && p.images.length > 0) ? p.images[0] : (p.image || '');
+                    const hasDiscount = p.oldPrice && p.oldPrice > p.price;
+                    const isWish = wishlist.some(item => item.id === p.id);
+                    const title = getProductTitle(p);
+                    const desc = getProductDesc(p);
+
+                    grid.innerHTML += `
+                        <div class="bg-white rounded-3xl border border-softTaupe/80 shadow-sm overflow-hidden hover:shadow-xl transition group flex flex-col justify-between">
+                            <div>
+                                <div class="relative h-64 overflow-hidden bg-warmCream cursor-pointer" onclick="openQuickView('${p.id}')">
+                                    <img src="${mainImg}" class="w-full h-full object-cover group-hover:scale-105 transition duration-300">
+                                    <div class="absolute top-3 left-3 flex flex-col gap-1">
+                                        <span class="px-2.5 py-1 bg-white/90 rounded-full text-[10px] font-bold text-espresso uppercase tracking-wider">${p.category}</span>
+                                        ${p.isDiscount || hasDiscount ? `<span class="px-2.5 py-1 bg-rose-600 text-white rounded-full text-[10px] font-bold uppercase tracking-wider">🔥 АКЦИЈА</span>` : ''}
+                                    </div>
+                                    <button onclick="event.stopPropagation(); toggleWishlist('${p.id}')" class="absolute top-3 right-3 w-9 h-9 rounded-full bg-white/90 flex items-center justify-center text-stone-400 hover:text-rose-600 shadow-sm transition">
+                                        <i class="fa-solid fa-heart ${isWish ? 'text-rose-600' : ''}"></i>
+                                    </button>
+                                </div>
+                                <div class="p-5">
+                                    <h3 class="font-bold text-espresso group-hover:text-amber-700 transition cursor-pointer" onclick="openQuickView('${p.id}')">${title}</h3>
+                                    <p class="text-xs text-stone-400 mt-1 line-clamp-1">${desc || ''}</p>
+                                    <div class="flex items-baseline gap-2 mt-3">
+                                        <span class="text-xl font-black text-espresso">${p.price.toLocaleString()} ден.</span>
+                                        ${hasDiscount ? `<span class="text-xs font-bold text-stone-400 line-through">${p.oldPrice.toLocaleString()} ден.</span>` : ''}
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="p-5 pt-0">
+                                <button onclick="openQuickView('${p.id}')" class="w-full py-2.5 bg-espresso text-accentGold font-bold text-xs rounded-2xl hover:bg-espressoDark transition flex items-center justify-center gap-1">
+                                    <i class="fa-solid fa-eye"></i> ${currentLang === 'en' ? 'View / Choose' : 'Преглед / Избор'}
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                });
+            }
+        }
+
+        function toggleWishlist(id) {
+            const index = wishlist.findIndex(item => item.id === id);
+            const prod = products.find(p => p.id === id);
+
+            if (index > -1) {
+                wishlist.splice(index, 1);
+                showToast(currentLang === 'en' ? 'Removed from Favorites' : 'Отстрането од Омилени');
+            } else {
+                wishlist.push(prod);
+                showToast(currentLang === 'en' ? 'Added to Favorites ❤️' : 'Додадено во Омилени ❤️');
+            }
+
+            saveState();
+            updateWishlistUI();
+            renderProducts();
+        }
+
+        function toggleWishlistModal() {
+            document.getElementById('wishlistModal').classList.toggle('hidden');
+        }
+
+        function updateWishlistUI() {
+            const badge = document.getElementById('wishlistBadge');
+            const container = document.getElementById('wishlistItemsContainer');
+
+            if (wishlist.length > 0) {
+                badge.innerText = wishlist.length;
+                badge.classList.remove('scale-0');
+            } else {
+                badge.classList.add('scale-0');
+            }
+
+            if (wishlist.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-12 text-stone-400">
+                        <i class="fa-solid fa-heart text-4xl mb-3"></i>
+                        <p class="text-sm font-medium">${currentLang === 'en' ? 'No favorite products' : 'Немате омилени производи'}</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = wishlist.map(item => {
+                const mainImg = (item.images && item.images.length > 0) ? item.images[0] : (item.image || '');
+                const title = getProductTitle(item);
+                return `
+                <div class="flex items-center gap-4 bg-warmCream/60 p-3 rounded-2xl border border-softTaupe/50">
+                    <img src="${mainImg}" class="w-16 h-16 rounded-xl object-cover">
+                    <div class="flex-1">
+                        <h4 class="font-bold text-xs text-espresso">${title}</h4>
+                        <p class="text-xs font-bold text-espresso mt-1">${item.price} ден.</p>
+                    </div>
+                    <button onclick="openQuickView('${item.id}'); toggleWishlistModal();" class="px-3 py-1.5 bg-espresso text-accentGold text-xs font-bold rounded-xl">${currentLang === 'en' ? 'View' : 'Преглед'}</button>
+                    <button onclick="toggleWishlist('${item.id}')" class="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg"><i class="fa-solid fa-trash"></i></button>
+                </div>
+            `}).join('');
+        }
+
+        function filterCategory(cat) {
+            currentCategory = cat;
+            document.querySelectorAll('.cat-btn').forEach(b => {
+                b.className = (b.dataset.cat === cat) 
+                    ? "cat-btn active px-4 py-2 text-xs font-bold rounded-2xl bg-espresso text-accentGold shadow-sm transition whitespace-nowrap"
+                    : "cat-btn px-4 py-2 text-xs font-bold rounded-2xl bg-white border border-softTaupe text-espresso hover:bg-warmCream transition whitespace-nowrap";
+            });
+            recalculatePriceBounds();
+            renderProducts();
+        }
+
+        function filterSubcategory(subcat) {
+            currentSubcategory = subcat;
+            document.querySelectorAll('.subcat-btn').forEach(b => {
+                const isActive = b.dataset.subcat === subcat;
+                b.className = isActive
+                    ? "subcat-btn active w-full flex items-center justify-between px-4 py-3 rounded-2xl text-xs font-bold bg-espresso text-accentGold shadow-sm transition"
+                    : "subcat-btn w-full flex items-center justify-between px-4 py-3 rounded-2xl text-xs font-bold text-espresso bg-warmCream/60 hover:bg-warmCream border border-softTaupe/40 transition";
+            });
+            recalculatePriceBounds();
+            renderProducts();
+        }
+
+        function filterProducts() { renderProducts(); }
+
+        function openQuickView(id) {
+            const p = products.find(prod => prod.id === id);
+            currentQvProduct = p;
+            currentQvQty = 1;
+            document.getElementById('qvQty').innerText = 1;
+
+            const title = getProductTitle(p);
+            const desc = getProductDesc(p);
+
+            document.getElementById('qvTitle').innerText = title;
+            document.getElementById('qvCategory').innerText = `${p.category} / ${p.subcategory || ''}`;
+            document.getElementById('qvDescription').innerText = desc || (currentLang === 'en' ? 'No description.' : 'Нема опис.');
+            document.getElementById('qvPrice').innerText = `${p.price.toLocaleString()} ден.`;
+
+            const oldPriceEl = document.getElementById('qvOldPrice');
+            const discountBadge = document.getElementById('qvDiscountBadge');
+            if (p.oldPrice && p.oldPrice > p.price) {
+                oldPriceEl.innerText = `${p.oldPrice.toLocaleString()} ден.`;
+                oldPriceEl.classList.remove('hidden');
+                discountBadge.innerText = `-${Math.round(((p.oldPrice - p.price)/p.oldPrice)*100)}%`;
+                discountBadge.classList.remove('hidden');
+            } else {
+                oldPriceEl.classList.add('hidden');
+                discountBadge.classList.add('hidden');
+            }
+
+            const images = (p.images && p.images.length > 0) ? p.images : ['https://images.unsplash.com/photo-1521572267360-ee0c2909d518?auto=format&fit=crop&w=600&q=80'];
+            document.getElementById('qvMainImage').src = images[0];
+            
+            document.getElementById('qvThumbnails').innerHTML = images.map(img => `
+                <img src="${img}" onclick="document.getElementById('qvMainImage').src='${img}'" class="w-14 h-14 object-cover rounded-xl cursor-pointer border-2 hover:border-espresso transition">
+            `).join('');
+
+            const colors = p.colors || ['Standard'];
+            currentQvSelectedColor = colors[0];
+            document.getElementById('qvColors').innerHTML = colors.map(c => `
+                <button onclick="selectQvColor('${c}', this)" class="qv-color-btn border border-softTaupe px-3.5 py-1.5 rounded-2xl text-xs font-bold ${c === currentQvSelectedColor ? 'bg-espresso text-accentGold border-espresso' : 'bg-white text-espresso'}">${c}</button>
+            `).join('');
+
+            updateQvSizesForColor();
+            document.getElementById('quickViewModal').classList.remove('hidden');
+        }
+
+        function selectQvColor(color, btn) {
+            currentQvSelectedColor = color;
+            document.querySelectorAll('.qv-color-btn').forEach(b => {
+                b.className = "qv-color-btn border border-softTaupe px-3.5 py-1.5 rounded-2xl text-xs font-bold bg-white text-espresso";
+            });
+            btn.className = "qv-color-btn border border-espresso bg-espresso text-accentGold px-3.5 py-1.5 rounded-2xl text-xs font-bold";
+            updateQvSizesForColor();
+        }
+
+        function updateQvSizesForColor() {
+            if (!currentQvProduct) return;
+            const colorSizesMap = currentQvProduct.colorSizes || {};
+            const availableSizes = colorSizesMap[currentQvSelectedColor] || currentQvProduct.sizes || ['Standard'];
+            
+            currentQvSelectedSize = availableSizes[0] || '';
+            document.getElementById('qvSizes').innerHTML = availableSizes.map(s => `
+                <button onclick="selectQvSize('${s}', this)" class="qv-size-btn border border-softTaupe px-3.5 py-1.5 rounded-2xl text-xs font-bold ${s === currentQvSelectedSize ? 'bg-espresso text-accentGold border-espresso' : 'bg-white text-espresso'}">${s}</button>
+            `).join('');
+        }
+
+        function selectQvSize(s, b) { 
+            currentQvSelectedSize = s; 
+            document.querySelectorAll('.qv-size-btn').forEach(x => x.className="qv-size-btn border border-softTaupe px-3.5 py-1.5 rounded-2xl text-xs font-bold bg-white text-espresso"); 
+            b.className="qv-size-btn border border-espresso bg-espresso text-accentGold px-3.5 py-1.5 rounded-2xl text-xs font-bold"; 
+        }
+
+        function handleZoom(e) {
+            const box = e.currentTarget;
+            const img = box.querySelector('img');
+            const rect = box.getBoundingClientRect();
+            img.style.transformOrigin = `${((e.clientX - rect.left)/rect.width)*100}% ${((e.clientY - rect.top)/rect.height)*100}%`;
+        }
+        function resetZoom() { document.querySelector('#qvZoomBox img').style.transformOrigin = 'center center'; }
+        function closeQuickView() { document.getElementById('quickViewModal').classList.add('hidden'); }
+        function adjustQvQty(c) { currentQvQty = Math.max(1, currentQvQty + c); document.getElementById('qvQty').innerText = currentQvQty; }
+
+        function addQvToCart() {
+            if (!currentQvProduct) return;
+            const mainImg = (currentQvProduct.images && currentQvProduct.images.length > 0) ? currentQvProduct.images[0] : '';
+            const title = getProductTitle(currentQvProduct);
+            const existing = cart.find(i => i.id === currentQvProduct.id && i.size === currentQvSelectedSize && i.color === currentQvSelectedColor);
+            if (existing) existing.qty += currentQvQty;
+            else cart.push({ id: currentQvProduct.id, title: title, price: currentQvProduct.price, image: mainImg, size: currentQvSelectedSize || 'Standard', color: currentQvSelectedColor || 'Standard', qty: currentQvQty });
+            saveState();
+            updateCartUI();
+            closeQuickView();
+            showToast(currentLang === 'en' ? 'Added to cart!' : 'Додадено во кошничка!');
+        }
+
+        function updateCartQty(idx, c) {
+            cart[idx].qty += c;
+            if (cart[idx].qty <= 0) cart.splice(idx, 1);
+            saveState();
+            updateCartUI();
+        }
+
+        function applyCartCoupon() {
+            const code = document.getElementById('cartCouponInput').value.trim().toUpperCase();
+            const c = coupons.find(item => item.code === code);
+            if (!c) { showToast(currentLang === 'en' ? 'Invalid coupon' : 'Невалиден купон', 'error'); return; }
+            if (!c.active) { showToast(currentLang === 'en' ? 'Coupon deactivated' : 'Купонот е деактивиран', 'error'); return; }
+
+            const sub = cart.reduce((s, i) => s + (i.price * i.qty), 0);
+            if (c.minOrder && sub < c.minOrder) { showToast(`${currentLang === 'en' ? 'Min order' : 'Минимум нарачка'} ${c.minOrder} ден.`, 'error'); return; }
+            activeAppliedCoupon = c;
+            showToast(currentLang === 'en' ? 'Coupon applied!' : 'Купон аплициран!');
+            updateCartUI();
+        }
+
+        function updateCartUI() {
+            const badge = document.getElementById('cartBadge');
+            const container = document.getElementById('cartItemsContainer');
+            const totalEl = document.getElementById('cartTotalPrice');
+            if (!container) return;
+            const totalItems = cart.reduce((s, i) => s + i.qty, 0);
+            let sub = cart.reduce((s, i) => s + (i.price * i.qty), 0);
+            let disc = 0;
+
+            if (activeAppliedCoupon) {
+                disc = activeAppliedCoupon.type === 'percent' ? (sub * activeAppliedCoupon.value) / 100 : activeAppliedCoupon.value;
+                document.getElementById('couponAppliedMsg').classList.remove('hidden');
+                document.getElementById('couponDiscountText').innerText = `-${disc} ден.`;
+            } else {
+                document.getElementById('couponAppliedMsg').classList.add('hidden');
+            }
+
+            const total = Math.max(0, sub - disc);
+            badge.innerText = totalItems;
+            badge.className = totalItems > 0 ? "absolute -top-1 -right-1 bg-espresso text-accentGold text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center shadow-sm" : "absolute -top-1 -right-1 bg-espresso text-accentGold text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center shadow-sm scale-0";
+            totalEl.innerText = `${total.toLocaleString()} ден.`;
+
+            container.innerHTML = cart.length === 0 ? `<div class="text-center py-12 text-stone-400">${currentLang === 'en' ? 'Cart is empty' : 'Кошничката е празна'}</div>` : cart.map((i, idx) => `
+                <div class="flex items-center gap-4 bg-warmCream/60 p-3 rounded-2xl border border-softTaupe/50">
+                    <img src="${i.image}" class="w-16 h-16 rounded-xl object-cover">
+                    <div class="flex-1">
+                        <h4 class="font-bold text-xs text-espresso">${i.title}</h4>
+                        <p class="text-[10px] text-stone-500 font-bold">${currentLang === 'en' ? 'Color' : 'Боја'}: ${i.color} | ${currentLang === 'en' ? 'Size' : 'Големина'}: ${i.size}</p>
+                        <div class="flex items-center gap-2 mt-2">
+                            <button onclick="updateCartQty(${idx}, -1)" class="w-6 h-6 bg-white border text-xs font-bold">-</button>
+                            <span class="text-xs font-bold">${i.qty}</span>
+                            <button onclick="updateCartQty(${idx}, 1)" class="w-6 h-6 bg-white border text-xs font-bold">+</button>
+                        </div>
+                    </div>
+                    <div class="font-bold text-sm">${(i.price * i.qty).toLocaleString()} ден.</div>
+                </div>
+            `).join('');
+        }
+
+        function toggleCartModal() {
+            document.getElementById('cartModal').classList.toggle('hidden');
+        }
+
+        function openCheckoutModal() { 
+            if(cart.length === 0) { showToast(currentLang === 'en' ? 'Empty cart' : 'Празна кошничка', 'error'); return; } 
+            toggleCartModal(); 
+            document.getElementById('checkoutModal').classList.remove('hidden'); 
+        }
+
+        function closeCheckoutModal() { document.getElementById('checkoutModal').classList.add('hidden'); }
+
+        async function submitOrder(e) {
+            e.preventDefault();
+            let sub = cart.reduce((s, i) => s + (i.price * i.qty), 0);
+            let disc = 0;
+            if (activeAppliedCoupon) {
+                disc = activeAppliedCoupon.type === 'percent' ? (sub * activeAppliedCoupon.value) / 100 : activeAppliedCoupon.value;
+                const foundC = coupons.find(c => c.code === activeAppliedCoupon.code);
+                if (foundC) {
+                    db.collection("coupons").doc(foundC.id).update({ timesUsed: (foundC.timesUsed || 0) + 1 });
+                }
+            }
+            
+            const newOrder = {
+                id: 'ORD-' + Math.floor(1000 + Math.random() * 9000),
+                date: new Date().toLocaleDateString('mk-MK'),
+                customer: document.getElementById('custName').value,
+                phone: document.getElementById('custPhone').value,
+                address: document.getElementById('custAddress').value,
+                items: [...cart],
+                subtotal: sub,
+                discount: disc,
+                couponCode: activeAppliedCoupon ? activeAppliedCoupon.code : 'Нема',
+                total: Math.max(0, sub - disc),
+                status: 'Во обработка'
+            };
+
+            await db.collection("orders").add(newOrder);
+
+            cart = [];
+            activeAppliedCoupon = null;
+            saveState();
+            updateCartUI();
+            closeCheckoutModal();
+            showToast(currentLang === 'en' ? 'Successful order in TONKA BOUTIQUE!' : 'Успешна нарачка во ТОНКА БУТИК!');
+        }
+
+        function toggleAdminView() {
+            if (!isAdminLoggedIn) {
+                document.getElementById('loginUsername').value = '';
+                document.getElementById('loginPassword').value = '';
+                document.getElementById('loginModal').classList.remove('hidden');
+            } else {
+                showSection(document.getElementById('admin-section').classList.contains('hidden') ? 'admin-section' : 'shop-section');
+            }
+        }
+
+        function handleLogin(e) {
+            e.preventDefault();
+            const u = document.getElementById('loginUsername').value;
+            const p = document.getElementById('loginPassword').value;
+
+            if (u === 'admin' && p === 'admin') {
+                isAdminLoggedIn = true;
+                document.getElementById('loginModal').classList.add('hidden');
+                document.getElementById('adminNavText').innerText = translations[currentLang].navAdmin;
+                document.getElementById('inventoryNavBtn').classList.remove('hidden');
+                document.getElementById('inventoryNavBtn').classList.add('flex');
+                showSection('admin-section');
+                showToast(currentLang === 'en' ? 'Logged in as Admin' : 'Успешно се најавивте како Админ');
+            } else { 
+                showToast(currentLang === 'en' ? 'Wrong username or password' : 'Погрешно корисничко име или лозинка', 'error'); 
+            }
+        }
+
+        function logoutAdmin() { 
+            isAdminLoggedIn = false; 
+            document.getElementById('inventoryNavBtn').classList.add('hidden');
+            document.getElementById('inventoryNavBtn').classList.remove('flex');
+            showSection('shop-section'); 
+            document.getElementById('adminNavText').innerText = translations[currentLang].navLogin; 
+            showToast(currentLang === 'en' ? 'Logged out' : 'Одјавени сте');
+        }
+
+        function closeLoginModal() { document.getElementById('loginModal').classList.add('hidden'); }
+        function checkAdminState() { 
+            document.getElementById('adminNavText').innerText = isAdminLoggedIn ? translations[currentLang].navAdmin : translations[currentLang].navLogin;
+            if (isAdminLoggedIn) {
+                document.getElementById('inventoryNavBtn').classList.remove('hidden');
+                document.getElementById('inventoryNavBtn').classList.add('flex');
+            } else {
+                document.getElementById('inventoryNavBtn').classList.add('hidden');
+                document.getElementById('inventoryNavBtn').classList.remove('flex');
+            }
+        }
+
+        function showSection(id) {
+            document.getElementById('shop-section').classList.add('hidden');
+            document.getElementById('admin-section').classList.add('hidden');
+            document.getElementById('inventory-section').classList.add('hidden');
+
+            document.getElementById(id).classList.remove('hidden');
+            if (id === 'admin-section') renderAdminData();
+            if (id === 'inventory-section') renderInventoryData();
+        }
+
+        function openInventoryView() {
+            if (!isAdminLoggedIn) {
+                toggleAdminView();
+            } else {
+                showSection('inventory-section');
+            }
+        }
+
+        function switchAdminTab(tab) {
+            document.getElementById('adminProductsView').classList.toggle('hidden', tab !== 'products');
+            document.getElementById('adminOrdersView').classList.toggle('hidden', tab !== 'orders');
+            document.getElementById('adminCouponsView').classList.toggle('hidden', tab !== 'coupons');
+            document.getElementById('tabProductsBtn').className = tab === 'products' ? "px-6 py-3 border-b-2 border-espresso font-bold text-espresso text-sm" : "px-6 py-3 border-b-2 border-transparent text-stone-500 text-sm";
+            document.getElementById('tabOrdersBtn').className = tab === 'orders' ? "px-6 py-3 border-b-2 border-espresso font-bold text-espresso text-sm" : "px-6 py-3 border-b-2 border-transparent text-stone-500 text-sm";
+            document.getElementById('tabCouponsBtn').className = tab === 'coupons' ? "px-6 py-3 border-b-2 border-espresso font-bold text-espresso text-sm" : "px-6 py-3 border-b-2 border-transparent text-stone-500 text-sm";
+        }
+
+        function generateInvoicePDF(orderId) {
+            const order = orders.find(o => o.id === orderId);
+            if (!order) return;
+
+            const html = `
+                <div class="p-8 bg-white text-espresso font-sans max-w-2xl border">
+                    <div class="flex justify-between items-start border-b pb-4">
+                        <div>
+                            <h1 class="text-2xl font-serif font-bold tracking-widest text-espresso uppercase">ТОНКА БУТИК</h1>
+                            <p class="text-xs text-stone-500">Скопје, Северна Македонија | Тел: 070 123 456</p>
+                        </div>
+                        <div class="text-right">
+                            <h2 class="text-lg font-bold text-accentGold">ФАКТУРА ${order.id}</h2>
+                            <p class="text-xs text-stone-500">Датум: ${order.date}</p>
+                        </div>
+                    </div>
+                    <div class="my-6 text-xs">
+                        <p class="font-bold uppercase text-stone-400">Примач:</p>
+                        <p class="font-bold text-sm">${order.customer}</p>
+                        <p>Тел: ${order.phone}</p>
+                        <p>Адреса: ${order.address}</p>
+                    </div>
+                    <table class="w-full text-left border-collapse text-xs my-4">
+                        <thead>
+                            <tr class="border-b bg-stone-100 font-bold">
+                                <th class="p-2">Производ</th>
+                                <th class="p-2">Детали</th>
+                                <th class="p-2">Кол</th>
+                                <th class="p-2 text-right">Цена</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y">
+                            ${order.items.map(i => `<tr><td class="p-2 font-bold">${i.title}</td><td class="p-2">Боја: ${i.color}, Големина: ${i.size}</td><td class="p-2">${i.qty}</td><td class="p-2 text-right">${(i.price * i.qty).toLocaleString()} ден.</td></tr>`).join('')}
+                        </tbody>
+                    </table>
+                    <div class="border-t pt-4 text-right text-xs space-y-1">
+                        <p>Меѓузбир: <span class="font-bold">${order.subtotal ? order.subtotal.toLocaleString() : order.total.toLocaleString()} ден.</span></p>
+                        <p class="text-emerald-700">Попуст: <span class="font-bold">-${order.discount ? order.discount.toLocaleString() : 0} ден.</span></p>
+                        <p class="text-base font-black mt-2">ВКУПНО ЗА ПЛАЌАЊЕ: <span class="text-espresso">${order.total.toLocaleString()} ден.</span></p>
+                    </div>
+                </div>
+            `;
+
+            const container = document.getElementById('invoiceTemplateContainer');
+            container.innerHTML = html;
+
+            html2pdf().set({ margin: 0.5, filename: `Faktura_TONKA_${order.id}.pdf`, image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2 }, jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' } }).from(container.firstElementChild).save();
+            showToast('PDF Фактурата се генерира...');
+        }
+
+        async function deleteOrder(docId) {
+            if (confirm(`Дали сте сигурни дека сакате да ја избришете нарачката?`)) {
+                await db.collection("orders").doc(docId).delete();
+                showToast(`Нарачката е избришана`, 'error');
+            }
+        }
+
+        function generateColorSizeConfig(existingColorSizes = {}) {
+            const colorsStr = document.getElementById('prodColorsInput').value;
+            const colors = colorsStr.split(',').map(c => c.trim()).filter(Boolean);
+            const container = document.getElementById('colorSizesConfigContainer');
+
+            container.innerHTML = colors.map(col => {
+                const sizesForCol = existingColorSizes[col] ? existingColorSizes[col].join(', ') : 'S, M, L, XL';
+                return `
+                <div class="bg-white p-3 rounded-xl border border-softTaupe flex flex-col sm:flex-row items-center gap-3">
+                    <span class="font-bold text-espresso text-xs w-36 uppercase">🎨 ${col}:</span>
+                    <input type="text" data-color="${col}" value="${sizesForCol}" placeholder="Нпр. S, M, L или 28, 30" class="color-size-input flex-1 w-full px-3 py-2 bg-warmCream rounded-xl border text-xs font-bold">
+                </div>
+            `;
+            }).join('');
+        }
+
+        function renderInventoryData() {
+            const tbody = document.getElementById('inventoryTableBody');
+            if (!tbody) return;
+            tbody.innerHTML = products.map(p => {
+                const colorSizes = p.colorSizes || {};
+                const title = getProductTitle(p);
+                let details = Object.entries(colorSizes).map(([col, sizes]) => `<span class="inline-block bg-warmCream px-2.5 py-1 rounded-lg m-1 text-xs font-bold border"><b>${col}:</b> ${sizes.join(', ')}</span>`).join('');
+                return `
+                <tr>
+                    <td class="p-4 flex items-center gap-3 font-bold text-espresso">
+                        <img src="${p.images?.[0]||''}" class="w-10 h-10 rounded-xl object-cover">
+                        ${title}
+                    </td>
+                    <td class="p-4 text-xs font-semibold uppercase">${p.category} / ${p.subcategory}</td>
+                    <td class="p-4">${details || 'Нема дефинирано'}</td>
+                    <td class="p-4 text-right">
+                        <button onclick="openEditProductModal('${p.id}')" class="text-xs font-bold text-espresso hover:underline">${currentLang === 'en' ? 'Edit Variants' : 'Измени Варијанти'}</button>
+                    </td>
+                </tr>
+            `;
+            }).join('');
+        }
+
+        async function savePromoBanner(e) {
+            e.preventDefault();
+            const text = document.getElementById('adminBannerTextInput').value;
+            const active = document.getElementById('adminBannerActiveCheckbox').checked;
+            await db.collection("settings").doc("banner").set({ text, active });
+            showToast('Банерот е зачуван!');
+        }
+
+        function generateRandomCode() {
+            document.getElementById('couponCode').value = 'PROMO' + Math.floor(100 + Math.random()*900);
+        }
+
+        async function saveCoupon(e) {
+            e.preventDefault();
+            const newCoupon = {
+                code: document.getElementById('couponCode').value.toUpperCase(),
+                type: document.getElementById('couponType').value,
+                value: parseFloat(document.getElementById('couponValue').value),
+                minOrder: parseFloat(document.getElementById('couponMinOrder').value) || 0,
+                timesUsed: 0,
+                active: true
+            };
+            await db.collection("coupons").add(newCoupon);
+            showToast('Купонот е креиран!');
+        }
+
+        async function toggleCouponStatus(docId, currentStatus) {
+            await db.collection("coupons").doc(docId).update({ active: !currentStatus });
+            showToast('Статусот на купонот е ажуриран');
+        }
+
+        async function deleteCoupon(docId) { 
+            await db.collection("coupons").doc(docId).delete(); 
+            showToast('Избришано', 'error'); 
+        }
+
+        function renderAdminData() {
+            const rev = orders.filter(o => o.status === 'Испорачано' || o.status === 'Испратено').reduce((s, o) => s + o.total, 0);
+            document.getElementById('statRevenue').innerText = `${rev.toLocaleString()} ден.`;
+            document.getElementById('statOrdersCount').innerText = orders.length;
+            document.getElementById('statProductsCount').innerText = products.length;
+            document.getElementById('statCouponsCount').innerText = coupons.filter(c => c.active).length;
+
+            document.getElementById('adminBannerTextInput').value = promoBannerData.text;
+            document.getElementById('adminBannerActiveCheckbox').checked = promoBannerData.active;
+
+            document.getElementById('adminProductTableBody').innerHTML = products.map(p => {
+                const title = getProductTitle(p);
+                return `
+                <tr>
+                    <td class="p-4 flex items-center gap-3"><img src="${p.images?.[0]||''}" class="w-10 h-10 rounded-xl object-cover"><span class="font-bold">${title}</span></td>
+                    <td class="p-4 uppercase text-xs font-semibold"><b>${p.category}</b> (${p.subcategory})</td>
+                    <td class="p-4 font-bold">${p.price} ден.</td>
+                    <td class="p-4 text-right space-x-2">
+                        <button onclick="openEditProductModal('${p.id}')" class="text-amber-700"><i class="fa-solid fa-pen"></i></button>
+                        <button onclick="deleteProduct('${p.id}')" class="text-rose-600"><i class="fa-solid fa-trash"></i></button>
+                    </td>
+                </tr>
+            `}).join('');
+
+            document.getElementById('adminOrdersTableBody').innerHTML = orders.map(o => `
+                <tr>
+                    <td class="p-4 font-bold">${o.id}<br><span class="text-xs text-stone-400">${o.date}</span></td>
+                    <td class="p-4">${o.customer}<br><span class="text-xs text-stone-500">${o.phone} | ${o.address}</span></td>
+                    <td class="p-4 text-xs">${o.items.map(i => `${i.title} (${i.color}, ${i.size}, x${i.qty})`).join('<br>')}</td>
+                    <td class="p-4 font-bold">${o.total.toLocaleString()} ден.</td>
+                    <td class="p-4 space-y-1">
+                        <select onchange="updateOrderStatus('${o.id}', this.value)" class="border rounded-xl px-2 py-1 text-xs font-bold bg-warmCream">
+                            <option ${o.status==='Во обработка'?'selected':''}>Во обработка</option>
+                            <option ${o.status==='Испратено'?'selected':''}>Испратено</option>
+                            <option ${o.status==='Испорачано'?'selected':''}>Испорачано</option>
+                        </select>
+                        <button onclick="generateInvoicePDF('${o.id}')" class="w-full bg-espresso text-accentGold text-[10px] font-bold py-1 rounded-xl"><i class="fa-solid fa-file-pdf"></i> Фактура</button>
+                    </td>
+                    <td class="p-4 text-right">
+                        <button onclick="deleteOrder('${o.id}')" class="p-2 text-rose-600 hover:bg-rose-50 rounded-xl" title="Избриши нарачка">
+                            <i class="fa-solid fa-trash"></i>
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+
+            document.getElementById('adminCouponsTableBody').innerHTML = coupons.map(c => `
+                <tr>
+                    <td class="p-4 font-black">${c.code}</td>
+                    <td class="p-4 text-accentGold font-bold">${c.value}${c.type==='percent'?'%':' ден.'}</td>
+                    <td class="p-4 font-bold">${c.minOrder} ден.</td>
+                    <td class="p-4 text-xs font-bold">${c.timesUsed || 0} пати</td>
+                    <td class="p-4"><span class="px-2.5 py-1 rounded-full text-xs font-bold ${c.active?'bg-emerald-100 text-emerald-800':'bg-rose-100 text-rose-800'}">${c.active?'🟢 Активен':'🔴 Неактивен'}</span></td>
+                    <td class="p-4 text-right space-x-1">
+                        <button onclick="toggleCouponStatus('${c.id}', ${c.active})" class="px-3 py-1 bg-warmCream hover:bg-stone-200 text-espresso text-xs font-bold rounded-lg">
+                            ${c.active ? 'Деактивирај' : 'Активирај'}
+                        </button>
+                        <button onclick="deleteCoupon('${c.id}')" class="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg"><i class="fa-solid fa-trash"></i></button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function exportOrdersToExcel() {
+            if (orders.length === 0) { showToast('Нема нарачки', 'error'); return; }
+            const ws = XLSX.utils.json_to_sheet(orders.map(o => ({ ИД: o.id, Клиент: o.customer, Телефон: o.phone, Вкупно: o.total, Статус: o.status })));
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "Нарачки");
+            XLSX.writeFile(wb, "naracki_TONKA_BUTIK.xlsx");
+            showToast('Excel фајлот е преземен!');
+        }
+
+        function handleFileUpload(e) {
+            const files = Array.from(e.target.files);
+            files.forEach(file => {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    currentUploadedImages.push(event.target.result);
+                    renderImagePreviews();
+                };
+                reader.readAsDataURL(file);
+            });
+        }
+
+        function renderImagePreviews() {
+            const container = document.getElementById('imagePreviewContainer');
+            container.innerHTML = currentUploadedImages.map((img, idx) => `
+                <div class="relative w-14 h-14 flex-shrink-0">
+                    <img src="${img}" class="w-full h-full object-cover rounded-xl border">
+                    <button type="button" onclick="removeImagePreview(${idx})" class="absolute -top-1 -right-1 bg-rose-600 text-white rounded-full w-4 h-4 text-[10px] flex items-center justify-center">×</button>
+                </div>
+            `).join('');
+        }
+
+        function removeImagePreview(index) {
+            currentUploadedImages.splice(index, 1);
+            renderImagePreviews();
+        }
+
+        function openAddProductModal() { 
+            document.getElementById('productModalTitle').innerText = translations[currentLang].modalProdTitle;
+            document.getElementById('prodId').value = '';
+            document.getElementById('prodTitleMk').value = '';
+            document.getElementById('prodTitleEn').value = '';
+            document.getElementById('prodDescMk').value = '';
+            document.getElementById('prodDescEn').value = '';
+            document.getElementById('prodCategory').value = 'zeni';
+            document.getElementById('prodSubcategory').value = 'bluzi';
+            document.getElementById('prodPrice').value = '';
+            document.getElementById('prodOldPrice').value = '';
+            document.getElementById('prodIsDiscount').checked = false;
+            document.getElementById('prodColorsInput').value = 'Бела, Црна';
+            document.getElementById('prodImagesUrl').value = '';
+            currentUploadedImages = [];
+            renderImagePreviews();
+            generateColorSizeConfig();
+            document.getElementById('productModal').classList.remove('hidden'); 
+        }
+
+        function openEditProductModal(id) {
+            const p = products.find(item => item.id === id);
+            if (!p) return;
+            document.getElementById('productModalTitle').innerText = translations[currentLang].modalProdTitle;
+            document.getElementById('prodId').value = p.id;
+            document.getElementById('prodTitleMk').value = p.titleMk || '';
+            document.getElementById('prodTitleEn').value = p.titleEn || '';
+            document.getElementById('prodDescMk').value = p.descMk || '';
+            document.getElementById('prodDescEn').value = p.descEn || '';
+            document.getElementById('prodCategory').value = p.category;
+            document.getElementById('prodSubcategory').value = p.subcategory || 'bluzi';
+            document.getElementById('prodPrice').value = p.price;
+            document.getElementById('prodOldPrice').value = p.oldPrice || '';
+            document.getElementById('prodIsDiscount').checked = !!p.isDiscount;
+            
+            const colorsArr = p.colors || ['Бела', 'Црна'];
+            document.getElementById('prodColorsInput').value = colorsArr.join(', ');
+
+            generateColorSizeConfig(p.colorSizes || {});
+
+            const existingUrls = (p.images || []).filter(img => !img.startsWith('data:image'));
+            const existingBase64 = (p.images || []).filter(img => img.startsWith('data:image'));
+            
+            document.getElementById('prodImagesUrl').value = existingUrls.join(', ');
+            currentUploadedImages = existingBase64;
+            renderImagePreviews();
+
+            document.getElementById('productModal').classList.remove('hidden');
+        }
+
+        function closeProductModal() { document.getElementById('productModal').classList.add('hidden'); }
+
+        async function saveProduct(e) {
+            e.preventDefault();
+            const id = document.getElementById('prodId').value;
+            const titleMk = document.getElementById('prodTitleMk').value;
+            const titleEn = document.getElementById('prodTitleEn').value;
+            const descMk = document.getElementById('prodDescMk').value;
+            const descEn = document.getElementById('prodDescEn').value;
+            const category = document.getElementById('prodCategory').value;
+            const subcategory = document.getElementById('prodSubcategory').value;
+            const price = parseFloat(document.getElementById('prodPrice').value);
+            const oldPriceVal = document.getElementById('prodOldPrice').value;
+            const oldPrice = oldPriceVal ? parseFloat(oldPriceVal) : null;
+            const isDiscount = document.getElementById('prodIsDiscount').checked;
+
+            const colors = document.getElementById('prodColorsInput').value.split(',').map(c => c.trim()).filter(Boolean);
+            
+            let colorSizes = {};
+            document.querySelectorAll('.color-size-input').forEach(input => {
+                const col = input.dataset.color;
+                const sizes = input.value.split(',').map(s => s.trim()).filter(Boolean);
+                colorSizes[col] = sizes;
+            });
+
+            const urlImages = document.getElementById('prodImagesUrl').value.split(',').map(u => u.trim()).filter(Boolean);
+            const allImages = [...currentUploadedImages, ...urlImages];
+
+            if (allImages.length === 0) {
+                allImages.push('https://images.unsplash.com/photo-1521572267360-ee0c2909d518?auto=format&fit=crop&w=600&q=80');
+            }
+
+            const productData = { titleMk, titleEn, descMk, descEn, category, subcategory, price, oldPrice, isDiscount, colors, colorSizes, images: allImages };
+
+            if (id) {
+                await db.collection("products").doc(id).update(productData);
+                showToast(currentLang === 'en' ? 'Product updated' : 'Производот е изменет');
+            } else {
+                await db.collection("products").add(productData);
+                showToast(currentLang === 'en' ? 'New product added' : 'Новиот производ е додаден');
+            }
+
+            closeProductModal();
+        }
+
+        async function deleteProduct(id) {
+            if (confirm('Дали сте сигурни за бришење на производот?')) {
+                await db.collection("products").doc(id).delete();
+                showToast('Избришано', 'error');
+            }
+        }
+
+        async function updateOrderStatus(id, status) {
+            await db.collection("orders").doc(id).update({ status: status });
+            showToast('Статусот е ажуриран');
+        }
+
+        function showToast(msg, type='info') {
+            const container = document.getElementById('toastContainer');
+            if (!container) return;
             const t = document.createElement('div');
             t.className = `p-4 rounded-2xl shadow-xl text-xs font-bold text-white flex items-center gap-3 ${type==='error'?'bg-rose-600':'bg-espresso border border-accentGold/20 text-accentGold'}`;
             t.innerHTML = `<i class="fa-solid ${type==='error'?'fa-circle-exclamation':'fa-circle-check text-accentGold'}"></i> ${msg}`;
