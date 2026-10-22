@@ -17,6 +17,8 @@
     <!-- Firebase SDK Compat -->
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+    <!-- EmailJS SDK -->
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
     <script>
         tailwind.config = {
             theme: {
@@ -885,8 +887,10 @@
         // Initialize Firebase
         firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
-        // Poveќe stabilna konekcija (spored mrezi/ad-blocker), mora da e pred prvoto koristenje na db
         db.settings({ experimentalAutoDetectLongPolling: true, merge: true });
+
+        // Initialize EmailJS with Public Key
+        emailjs.init("PFHXV6TndRYfSu1E0");
 
         // TRANSLATIONS DICTIONARY
         const translations = {
@@ -1193,7 +1197,6 @@
                 }
             }, onFirestoreError('products'));
 
-            // FIX: docId e vistinskoto Firestore ID (ne se pregazuva so ORD-xxxx)
             db.collection("orders").onSnapshot((snapshot) => {
                 orders = [];
                 snapshot.forEach((doc) => {
@@ -1610,10 +1613,10 @@
             document.getElementById('cardDetailsContainer').classList.toggle('hidden', !show);
         }
 
-        // ================= SUBMIT ORDER (FIXED) =================
+        // ================= SUBMIT ORDER (WITH EMAILJS INTEGRATION) =================
         async function submitOrder(e) {
             e.preventDefault();
-            if (isSubmittingOrder) return; // sprecuva dupli narackki
+            if (isSubmittingOrder) return;
             isSubmittingOrder = true;
 
             const form = e.target;
@@ -1652,8 +1655,7 @@
                 : null;
 
             try {
-                // Cekame max 4 sek. Ako serverot docni, zapisot e vekje vo lokalna redica
-                // i Firestore ke go isprati sam, pa ne go blokirame korisnikot.
+                // Save to Firestore
                 await Promise.race([
                     db.collection("orders").add(newOrder),
                     new Promise(resolve => setTimeout(resolve, 4000))
@@ -1664,6 +1666,27 @@
                         .update({ timesUsed: (usedCoupon.timesUsed || 0) + 1 })
                         .catch(() => {});
                 }
+
+                // Send Email via EmailJS
+                const itemsSummary = newOrder.items.map(i => `${i.title} (${i.color}, ${i.size}) x${i.qty} - ${(i.price * i.qty).toLocaleString()} ден.`).join('\n');
+                const templateParams = {
+                    order_id: newOrder.id,
+                    customer_name: newOrder.customer,
+                    customer_phone: newOrder.phone,
+                    customer_address: newOrder.address,
+                    payment_method: newOrder.paymentMethod,
+                    order_items: itemsSummary,
+                    order_total: newOrder.total.toLocaleString() + ' ден.',
+                    coupon_code: newOrder.couponCode,
+                    order_discount: newOrder.discount ? newOrder.discount.toLocaleString() + ' ден.' : '0 ден.'
+                };
+
+                emailjs.send('service_6umwy4f', 'template_1ro8c0u', templateParams)
+                    .then(response => {
+                        console.log('EmailJS Success:', response.status, response.text);
+                    }, error => {
+                        console.error('EmailJS Error:', error);
+                    });
 
                 cart = [];
                 activeAppliedCoupon = null;
@@ -1854,7 +1877,7 @@
             });
         }
 
-                function generateColorSizeConfig(existingColorSizes = {}) {
+        function generateColorSizeConfig(existingColorSizes = {}) {
             const colorsStr = document.getElementById('prodColorsInput').value;
             const colors = colorsStr.split(',').map(c => c.trim()).filter(Boolean);
             const container = document.getElementById('colorSizesConfigContainer');
@@ -2023,9 +2046,8 @@
             }).join('');
         }
 
-        // ---------- Stock modal state ----------
         let st = { id: '', system: 'letters', available: [], selected: [], colors: [], stock: {}, images: [] };
-        let customSizeOptions = {}; // { letters: ['4XL'], eu_shoes: ['37.5'], ... } (se cuva vo Firestore: settings/sizeOptions)
+        let customSizeOptions = {};
         const stKey = (c, s) => c + '||' + s;
 
         function detectSizeSystem(sizes) {
@@ -2119,7 +2141,6 @@
         function setStCategory(cat) {
             document.getElementById('stCategory').value = cat;
             updateStCategoryUI();
-            // za nov artikl: avtomatski predlozi tip na golemini spored kategorijata
             if (!st.id) {
                 if (cat === 'deca' && st.system !== 'kids') {
                     st.system = 'kids'; st.selected = [];
@@ -2276,7 +2297,6 @@
                 <span class="text-stone-500">Големини: ${st.selected.length} · Бои: ${st.colors.length}</span>`;
         }
 
-        // ---------- Images ----------
         function compressImage(file, max = 800, quality = 0.72) {
             return new Promise(resolve => {
                 const reader = new FileReader();
@@ -2333,7 +2353,6 @@
                 </div>`).join('');
         }
 
-        // ---------- Save ----------
         async function saveStock(e) {
             e.preventDefault();
             applyColors();
@@ -2395,7 +2414,7 @@
             }
         }
 
-                async function savePromoBanner(e) {
+        async function savePromoBanner(e) {
             e.preventDefault();
             const textMk = document.getElementById('adminBannerTextMk').value;
             const textEn = document.getElementById('adminBannerTextEn').value;
@@ -2460,7 +2479,6 @@
                 </tr>
             `}).join('');
 
-            // FIX: status i brisenje koristat o.docId (pravoto Firestore ID)
             document.getElementById('adminOrdersTableBody').innerHTML = orders.map(o => `
                 <tr>
                     <td class="p-4 font-bold">${o.id}<br><span class="text-xs text-stone-400">${o.date}</span></td>
@@ -2641,7 +2659,6 @@
             }
         }
 
-        // FIX: prima docId (pravoto Firestore ID)
         async function updateOrderStatus(docId, status) {
             try {
                 await db.collection("orders").doc(docId).update({ status: status });
